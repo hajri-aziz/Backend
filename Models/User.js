@@ -12,6 +12,8 @@ const User = new Schema({
     dateNaissance: Date,
     otpCode: String,  // Code OTP
     otpExpires: Date, // Expiration du code
+    isApproved: { type: Boolean, default: false },
+    telephone: Number,
     status: {
         type: String,
         enum: ['autorisé', 'non autorisé'],  // Valeurs autorisées

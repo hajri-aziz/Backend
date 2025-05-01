@@ -6,7 +6,6 @@ async function validateUser(req, res, next) {
             nom: yup.string().matches(/^[a-zA-Z]/, 'Name must start with a letter').required(),
             prenom: yup.string().matches(/^[a-zA-Z]/, 'Prenom must start with a letter').required(),
             email: yup.string().email().matches(/@esprit.tn/, 'Email must belong to esprit.tn domain').required(),
-            role: yup.string().matches(/^[a-zA-Z]/, 'Role must start with a letter').required(),
             
         });
 
