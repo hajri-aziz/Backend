@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const Notification = require('../Models/Notification');
 //const sendSMS = require('../Utils/sendSMS'); // ta fonction d'envoi
-const sendEmail = require('../Utils/sendEmail'); // si tu veux aussi envoyer un mail
+const sendEmail = require('../services/sendEmail'); // si tu veux aussi envoyer un mail
 const User = require('../Models/User');
 
 cron.schedule('*/2 * * * *', async () => {

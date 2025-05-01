@@ -1,152 +1,73 @@
-const http = require("http");
-const express = require("express");
-const path = require("path");
-const { swaggerUi, swaggerSpec } = require('./swagger');
-const socketIo = require("socket.io");
+// app.js
 
+// 1. Charger les variables d’environnement en premier
+require('dotenv').config();
 
+const http      = require('http');
+const express   = require('express');
+const path      = require('path');
+const cors      = require('cors');
+const socketIo  = require('socket.io');
+const mongo     = require('mongoose');
 
-// Importation des routes
-const dispoRouter = require("./Routes/Dispo");
-const rendezvousRouter = require("./Routes/RendezVous");
-const eventsRouter = require("./Routes/Evenement");
-const notificationRouter = require("./Routes/Notification");
-
-
-
-// Importation des contrôleurs
-const planningController = require("./Controller/PlanningController");
-
-// Connexion MongoDB
-const mongo = require("mongoose");
-const db = require("./Config/db.json");
-
-if (!db.url) {
-  console.error("Erreur : L'URL de la base de données est manquante !");
+const { swaggerUi, swaggerSpec } = require('./Config/swagger');
+// 2. Connexion à MongoDB
+const { url: dbUrl } = require('./Config/db.json');
+if (!dbUrl) {
+  console.error("❌ Erreur : L'URL de la base de données est manquante !");
   process.exit(1);
 }
+mongo.connect(dbUrl, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("✅ Database connected"))
+  .catch(err => console.error("❌ Erreur de connexion MongoDB", err));
 
-mongo
-  .connect(db.url)
-  .then(() => console.log("Database connected ✅"))
-  .catch((err) => console.error("Erreur de connexion MongoDB ❌", err));
+// 3. Création de l’application Express
+const app = express();
 
-// Création de l'application Express  
-var app = express();
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "twig");
-app.use(express.json());  // Middleware pour analyser les requêtes JSON
-
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// Configuration des routes
-app.use("/apis", dispoRouter);
-app.use("/apis", rendezvousRouter);
-app.use("/apis", eventsRouter); 
-app.use("/apis", notificationRouter);
-
-
-
-// Chargement des variables d'environnement en premier
-require('dotenv').config({ path: './.env' });
-require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
-
-const cors = require('cors');
-
-// Middleware
-app.use(express.json()); // Pour analyser les requêtes JSON
-app.use(cors());         // Pour gérer les CORS
-app.use('/uploads', express.static('uploads')); // Pour servir les fichiers statiques (uploads)
-
-// Vues
-app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
-app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
-
-// ======== ROUTES ========
-const testRoutes = require('./Routes/testRoutes'); // Ajustez le chemin selon votre structure
-app.use('/api/test', testRoutes);
-// Routes pour les utilisateurs
-const UserRouter = require('./Routes/User');
-app.use('/user', UserRouter);
-
-// Routes pour les catégories de cours
-const CoursCategory = require('./Models/CoursCategory');
-const coursCategoryRoutes = require('./Routes/CoursCategory');
-app.use('/api/coursecategories', coursCategoryRoutes);
-
-// Routes pour les cours
-const coursRoutes = require('./Routes/Cours');
-app.use('/api/cours', coursRoutes);
-
-// Routes pour les sessions de cours
-const coursSessionRoutes = require('./Routes/CoursSession');
-app.use('/api/courssessions', coursSessionRoutes);
-
-// Route pour mettre à jour une catégorie de cours
-app.post('/api/coursecategories/update/:id', async (req, res) => {
-  const { id } = req.params;
-  const { title, description } = req.body;
-  
-  try {
-    const updatedCategory = await CoursCategory.findByIdAndUpdate(
-      id,
-      { title, description },
-      { new: true }
-    );
-    
-    if (!updatedCategory) {
-      return res.status(404).json({ message: 'Category not found' });
-    }
-    
-    res.status(200).json(updatedCategory);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Création de l'application Express
-
-// Création du serveur HTTP + WebSocket
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: "*", // Autoriser les requêtes depuis toutes les origines
-    methods: ["GET", "POST"]
-  }
-});
-
-// Importation des contrôleurs
-const socketController = require("./Controller/socketController"); // Gestion WebSocket
-
-// Initialiser la logique WebSocket avec io
-const messageApi = socketController(io); // Ce retour contient les fonctions REST
-//
-
-// Importation des routes
-const postRouter = require("./Routes/Post");
-const commentaireRouter = require("./Routes/Commentaire");
-const groupeRouter = require("./Routes/group");
-
-
-
-// Configuration du moteur de vue
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "twig");
-
-// Middlewares
+// 4. Middlewares globaux
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use('/uploads/posts', express.static('uploads/posts'));
+// 5. Moteur de vues (Twig)
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'twig');
 
-// 📌 Configuration des routes REST
-app.use("/post", postRouter);
-app.use("/commentaire", commentaireRouter);
-app.use("/group", groupeRouter);
+// 6. Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Routes REST liées aux messages
-app.get("/message/conversation", messageApi.getConversationMessages);
-app.get("/message/conversations/:userId", messageApi.getUserConversations);
+// 7. Routes REST principales
+app.use('/apis',          require('./Routes/Dispo'));
+app.use('/apis',          require('./Routes/RendezVous'));
+app.use('/apis',          require('./Routes/Evenement'));
+app.use('/apis',          require('./Routes/Notification'));
 
-// Création et démarrage du serveur
-server.listen(3000, () => console.log("✅ Server is running on port 3000"));
+app.use('/api/test',       require('./Routes/testRoutes'));
+app.use('/user',           require('./Routes/User'));
+
+app.use('/api/coursecategories', require('./Routes/CoursCategory'));
+app.use('/api/cours',            require('./Routes/Cours'));
+app.use('/api/courssessions',    require('./Routes/CoursSession'));
+
+app.use('/post',       require('./Routes/Post'));
+app.use('/commentaire', require('./Routes/Commentaire'));
+app.use('/group',      require('./Routes/group'));
+
+// 8. Lancer les jobs de notifications (cron)
+require('./Jobs_Notification/cron');
+
+// 9. WebSocket (socket.io)
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: { origin: '*', methods: ['GET','POST'] }
+});
+const socketController = require('./Controller/socketController');
+const messageApi = socketController(io);
+
+app.get('/message/conversation',           messageApi.getConversationMessages);
+app.get('/message/conversations/:userId',  messageApi.getUserConversations);
+
+// 10. Démarrage du serveur
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
