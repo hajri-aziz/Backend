@@ -1,5 +1,5 @@
 // middleware/auth.js - version session
-const User = require('../models/User');
+const User = require('../Models/User');
 
 const auth = async (req, res, next) => {
     try {

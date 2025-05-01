@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { sendEmail, emailTemplates } = require('../mailer'); // Ajustez le chemin selon votre structure de projet
+const { sendEmail, emailTemplates } = require('../services/mailer'); // Ajustez le chemin selon votre structure de projet
 
 router.post('/test-email', async (req, res) => {
     try {

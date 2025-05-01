@@ -1,31 +1,72 @@
+// routes/CoursSession.js
+
 const express = require('express');
 const router = express.Router();
 
 const {
-    createCoursSession,
-    getAllCoursSessions,
-    getCoursSessionById,
-    updateCoursSession,
-    deleteCoursSession,
-    inscrireCoursSession,
-    getInscriptionsBySession,
-    annulerInscription,
-    getSessionsByUser
+  createCoursSession,
+  getAllCoursSessions,
+  getCoursSessionById,
+  updateCoursSession,
+  deleteCoursSession,
+  inscrireCoursSession,
+  getInscriptionsBySession,
+  annulerInscription,
+  getSessionsByUser
 } = require('../Controller/CoursController');
+
+const validateBody = require('../middll/validateBody');
+const { validateCoursSession, validateSessionInscription } = require('../middll/ValidateCours');
+const { authMiddleware, checkRole } = require('../middll/authMiddleware');
 
 /**
  * @swagger
  * tags:
- *   name: Course Sessions
- *   description: API for managing course sessions and enrollments
+ *   name: CourseSessions
+ *   description: API de gestion des sessions de cours et inscriptions
  */
+
+/**
+ * @swagger
+ * /api/courssessions/all:
+ *   get:
+ *     summary: Récupérer toutes les sessions de cours
+ *     tags: [CourseSessions]
+ *     responses:
+ *       200:
+ *         description: Liste des sessions renvoyée
+ */
+router.get('/all', getAllCoursSessions);
+
+/**
+ * @swagger
+ * /api/courssessions/get/{id}:
+ *   get:
+ *     summary: Récupérer une session par ID
+ *     tags: [CourseSessions]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la session
+ *     responses:
+ *       200:
+ *         description: Session trouvée
+ *       404:
+ *         description: Session non trouvée
+ */
+router.get('/get/:id', getCoursSessionById);
 
 /**
  * @swagger
  * /api/courssessions/add:
  *   post:
- *     summary: Create a new course session
- *     tags: [Course Sessions]
+ *     summary: Créer une nouvelle session de cours (instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -35,6 +76,13 @@ const {
  *             required:
  *               - title
  *               - cours_id
+ *               - video_url
+ *               - duration
+ *               - startdate
+ *               - enddate
+ *               - location
+ *               - capacity
+ *               - status
  *             properties:
  *               title:
  *                 type: string
@@ -43,7 +91,16 @@ const {
  *               video_url:
  *                 type: string
  *               duration:
- *                 type: number
+ *                 type: object
+ *                 required: [amount]
+ *                 properties:
+ *                   amount:
+ *                     type: number
+ *                     description: Durée en minutes
+ *                   unit:
+ *                     type: string
+ *                     enum: [minutes]
+ *                     default: minutes
  *               startdate:
  *                 type: string
  *                 format: date-time
@@ -53,232 +110,234 @@ const {
  *               location:
  *                 type: string
  *               capacity:
- *                 type: number
+ *                 type: integer
  *               status:
  *                 type: string
+ *                 enum: [active,inactive,completed,scheduled,in-progress,cancelled]
  *     responses:
  *       201:
- *         description: The session was successfully created
+ *         description: Session créée
  *       400:
- *         description: Invalid input data
- *       500:
- *         description: Server error
+ *         description: Données invalides
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  */
-router.post('/add', createCoursSession);
-
-/**
- * @swagger
- * /api/courssessions/all:
- *   get:
- *     summary: Get all course sessions
- *     tags: [Course Sessions]
- *     responses:
- *       200:
- *         description: List of all sessions
- *       500:
- *         description: Server error
- */
-router.get('/all', getAllCoursSessions);
-
-/**
- * @swagger
- * /api/courssessions/get/{id}:
- *   get:
- *     summary: Get a session by ID
- *     tags: [Course Sessions]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: Session ID
- *     responses:
- *       200:
- *         description: Session details
- *       404:
- *         description: Session not found
- *       500:
- *         description: Server error
- */
-router.get('/get/:id', getCoursSessionById);
+router.post(
+  '/add',
+  authMiddleware,
+  checkRole('instructor','admin'),
+  validateBody(validateCoursSession),
+  createCoursSession
+);
 
 /**
  * @swagger
  * /api/courssessions/update/{id}:
  *   put:
- *     summary: Update a session
- *     tags: [Course Sessions]
+ *     summary: Mettre à jour une session de cours (instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
+ *       - name: id
+ *         in: path
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: Session ID
+ *         description: ID de la session
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               cours_id:
- *                 type: string
- *               video_url:
- *                 type: string
- *               duration:
- *                 type: number
- *               startdate:
- *                 type: string
- *                 format: date-time
- *               enddate:
- *                 type: string
- *                 format: date-time
- *               location:
- *                 type: string
- *               capacity:
- *                 type: number
- *               status:
- *                 type: string
+ *             $ref: '#/components/schemas/CoursSession'
  *     responses:
  *       200:
- *         description: Session updated successfully
+ *         description: Session mise à jour
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  *       404:
- *         description: Session not found
- *       500:
- *         description: Server error
+ *         description: Session non trouvée
  */
-router.put('/update/:id', updateCoursSession);
+router.put(
+  '/update/:id',
+  authMiddleware,
+  checkRole('instructor','admin'),
+  validateBody(validateCoursSession),
+  updateCoursSession
+);
 
 /**
  * @swagger
  * /api/courssessions/delete/{id}:
  *   delete:
- *     summary: Delete a session
- *     tags: [Course Sessions]
+ *     summary: Supprimer une session de cours (instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
+ *       - name: id
+ *         in: path
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: Session ID
+ *         description: ID de la session
  *     responses:
  *       200:
- *         description: Session deleted successfully
+ *         description: Session supprimée
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  *       404:
- *         description: Session not found
- *       500:
- *         description: Server error
+ *         description: Session non trouvée
  */
-router.delete('/delete/:id', deleteCoursSession);
+router.delete(
+  '/delete/:id',
+  authMiddleware,
+  checkRole('instructor','admin'),
+  deleteCoursSession
+);
 
 /**
  * @swagger
- * /api/courssessions/inscriptions:
+ * /api/courssessions/{session_id}/inscriptions:
  *   post:
- *     summary: Enroll a user in a course session
- *     tags: [Course Sessions]
+ *     summary: Inscrire un utilisateur à une session (student, instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: session_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la session
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - session_id
- *               - user_id
- *             properties:
- *               session_id:
- *                 type: string
- *               user_id:
- *                 type: string
+ *             $ref: '#/components/schemas/SessionInscription'
  *     responses:
  *       201:
- *         description: Enrollment successful
+ *         description: Inscription réussie
  *       400:
- *         description: User already enrolled or capacity reached
+ *         description: Déjà inscrit ou capacité atteinte
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  *       404:
- *         description: Session not found
- *       500:
- *         description: Server error
+ *         description: Session non trouvée
  */
-router.post('/inscriptions', inscrireCoursSession);
+router.post(
+  '/:session_id/inscriptions',
+  authMiddleware,
+  checkRole('student','instructor','admin'),
+  validateBody(validateSessionInscription),
+  inscrireCoursSession
+);
 
 /**
  * @swagger
- * /api/courssessions/sessions/{session_id}/inscriptions:
+ * /api/courssessions/{session_id}/inscriptions:
  *   get:
- *     summary: Get all enrollments for a session
- *     tags: [Course Sessions]
+ *     summary: Lister les inscriptions d’une session (instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: session_id
+ *       - name: session_id
+ *         in: path
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: Session ID
+ *         description: ID de la session
  *     responses:
  *       200:
- *         description: List of all enrollments
+ *         description: Liste des inscriptions
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  *       404:
- *         description: Session not found
- *       500:
- *         description: Server error
+ *         description: Session non trouvée
  */
-router.get('/sessions/:session_id/inscriptions', getInscriptionsBySession);
+router.get(
+  '/:session_id/inscriptions',
+  authMiddleware,
+  checkRole('instructor','admin'),
+  getInscriptionsBySession
+);
 
 /**
  * @swagger
- * /api/courssessions/sessions/{session_id}/inscriptions/{user_id}:
+ * /api/courssessions/{session_id}/inscriptions/{user_id}:
  *   delete:
- *     summary: Cancel an enrollment
- *     tags: [Course Sessions]
+ *     summary: Annuler l'inscription d'un utilisateur (student, instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: session_id
- *         schema:
- *           type: string
+ *       - name: session_id
+ *         in: path
  *         required: true
- *         description: Session ID
- *       - in: path
- *         name: user_id
- *         schema:
- *           type: string
+ *       - name: user_id
+ *         in: path
  *         required: true
- *         description: User ID
  *     responses:
  *       200:
- *         description: Enrollment canceled successfully
+ *         description: Inscription annulée
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  *       404:
- *         description: Session or enrollment not found
- *       500:
- *         description: Server error
+ *         description: Session ou inscription non trouvée
  */
-router.delete('/sessions/:session_id/inscriptions/:user_id', annulerInscription);
+router.delete(
+  '/:session_id/inscriptions/:user_id',
+  authMiddleware,
+  checkRole('student','instructor','admin'),
+  annulerInscription
+);
 
 /**
  * @swagger
  * /api/courssessions/users/{user_id}/sessions:
  *   get:
- *     summary: Get all sessions for a user
- *     tags: [Course Sessions]
+ *     summary: Lister les sessions d’un utilisateur (student, instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: user_id
+ *       - name: user_id
+ *         in: path
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: User ID
+ *         description: ID de l'utilisateur
  *     responses:
  *       200:
- *         description: List of all sessions for the user
- *       500:
- *         description: Server error
+ *         description: Liste des sessions
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
  */
-router.get('/users/:user_id/sessions', getSessionsByUser);
+router.get(
+  '/users/:user_id/sessions',
+  authMiddleware,
+  checkRole('student','instructor','admin'),
+  getSessionsByUser
+);
 
 module.exports = router;

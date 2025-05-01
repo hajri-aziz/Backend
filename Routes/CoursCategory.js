@@ -1,3 +1,4 @@
+// routes/CoursCategory.js
 
 const express = require('express');
 const router = express.Router();
@@ -7,28 +8,10 @@ const {
   getCategoryById,
   updateCategory,
   deleteCategory
-} = require('../Controller/CoursController'); 
-/**
- * @swagger
- * components:
- *   schemas:
- *     CourseCategory:
- *       type: object
- *       required:
- *         - title
- *         - description
- *       properties:
- *         title:
- *           type: string
- *         description:
- *           type: string
- *         created_at:
- *           type: string
- *           format: date-time
- *         updated_at:
- *           type: string
- *           format: date-time
- */
+} = require('../Controller/CoursController');
+const validateBody = require('../Middll/validateBody');
+const { validateCourseCategory } = require('../Middll/ValidateCours');
+const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
 
 /**
  * @swagger
@@ -37,34 +20,15 @@ const {
  *   description: API de gestion des catégories de cours
  */
 
-
-/**
- * @swagger
- * /api/coursecategories/add:
- *   post:
- *     summary: Créer une catégorie
- *     tags: [CourseCategories]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CourseCategory'
- *     responses:
- *       201:
- *         description: Créée avec succès
- */
-router.post('/add', createCategory);
-
 /**
  * @swagger
  * /api/coursecategories/all:
  *   get:
- *     summary: Récupérer toutes les catégories
+ *     summary: Récupérer toutes les catégories de cours
  *     tags: [CourseCategories]
  *     responses:
  *       200:
- *         description: Liste des catégories
+ *         description: Liste des catégories renvoyée
  */
 router.get('/all', getAllCategories);
 
@@ -80,6 +44,7 @@ router.get('/all', getAllCategories);
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID de la catégorie
  *     responses:
  *       200:
  *         description: Catégorie trouvée
@@ -90,16 +55,51 @@ router.get('/get/:id', getCategoryById);
 
 /**
  * @swagger
+ * /api/coursecategories/add:
+ *   post:
+ *     summary: Créer une nouvelle catégorie de cours (admin uniquement)
+ *     tags: [CourseCategories]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CourseCategory'
+ *     responses:
+ *       201:
+ *         description: Catégorie créée
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
+ */
+router.post(
+  '/add',
+  authMiddleware,
+  checkRole('admin'),
+  validateBody(validateCourseCategory),
+  createCategory
+);
+
+/**
+ * @swagger
  * /api/coursecategories/update/{id}:
  *   put:
- *     summary: Modifier une catégorie
+ *     summary: Mettre à jour une catégorie de cours (admin uniquement)
  *     tags: [CourseCategories]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID de la catégorie
  *     requestBody:
  *       required: true
  *       content:
@@ -108,26 +108,54 @@ router.get('/get/:id', getCategoryById);
  *             $ref: '#/components/schemas/CourseCategory'
  *     responses:
  *       200:
- *         description: Mise à jour réussie
+ *         description: Catégorie mise à jour
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
+ *       404:
+ *         description: Catégorie non trouvée
  */
-router.put('/update/:id', updateCategory);
+router.put(
+  '/update/:id',
+  authMiddleware,
+  checkRole('admin'),
+  validateBody(validateCourseCategory),
+  updateCategory
+);
 
 /**
  * @swagger
  * /api/coursecategories/delete/{id}:
  *   delete:
- *     summary: Supprimer une catégorie
+ *     summary: Supprimer une catégorie de cours (admin uniquement)
  *     tags: [CourseCategories]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID de la catégorie
  *     responses:
  *       200:
- *         description: Supprimée avec succès
+ *         description: Catégorie supprimée
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
+ *       404:
+ *         description: Catégorie non trouvée
  */
-router.delete('/delete/:id', deleteCategory);
+router.delete(
+  '/delete/:id',
+  authMiddleware,
+  checkRole('admin'),
+  deleteCategory
+);
 
 module.exports = router;
