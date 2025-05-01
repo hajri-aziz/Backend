@@ -3,6 +3,8 @@ const express = require("express");
 const path = require("path");
 const { swaggerUi, swaggerSpec } = require('./swagger');
 const socketIo = require("socket.io");
+const morgan = require("morgan");
+
 
 
 
@@ -51,9 +53,9 @@ app.use("/apis", notificationRouter);
 require('dotenv').config({ path: './.env' });
 require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
 
-const cors = require('cors');
-
+const cors = require('cors'); 
 // Middleware
+app.use(morgan("dev")); 
 app.use(express.json()); // Pour analyser les requêtes JSON
 app.use(cors());         // Pour gérer les CORS
 app.use('/uploads', express.static('uploads')); // Pour servir les fichiers statiques (uploads)
@@ -63,6 +65,49 @@ app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
 app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
 
 // ======== ROUTES ========
+// Route definitions
+const personalityTraitRoutes = require('./Routes/personality-trait.routes');
+app.use("/api/personality-traits", personalityTraitRoutes);
+
+// test routes 
+const testRoutes = require('./Routes/test.routes');
+app.use("/api/tests", testRoutes);
+
+
+// test-category routes 
+const testCategoryRoutes = require('./Routes/test-category.routes');
+app.use("/api/test-categories", testCategoryRoutes);
+
+
+// test-scoring-algorithm routes
+const testScoringAlgorithmRoutes = require('./Routes/test-scoring-algorithm.routes');
+app.use("/api/test-scoring-algorithms", testScoringAlgorithmRoutes);
+
+
+// test-session routes
+const testSessionRoutes = require('./Routes/test-session.routes');
+app.use("/api/test-sessions", testSessionRoutes);
+
+
+// question routes
+const questionRoutes = require('./Routes/question.routes');
+app.use("/api/questions", questionRoutes);
+
+
+// psychological-profile routes
+const psychologicalProfileRoutes = require('./Routes/psychological-profile.routes');
+app.use("/api/psychological-profile", psychologicalProfileRoutes);
+
+
+// test-recommendation routes
+const testRecommendationRoutes = require('./Routes/test-recommendation.routes');
+app.use("/api/test-recommendations", testRecommendationRoutes);
+
+
+// psychological-report routes
+const psychologicalReportRoutes = require('./Routes/psychological-report.routes');
+app.use("/api/psychological-reports", psychologicalReportRoutes);
+
 const testRoutes = require('./Routes/testRoutes'); // Ajustez le chemin selon votre structure
 app.use('/api/test', testRoutes);
 // Routes pour les utilisateurs
