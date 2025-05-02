@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const postController = require("../Controller/ForumController");
 const upload = require('../Middll/uploads');
+const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
 const { addPost } = require('../Controller/ForumController');
 const multer = require("multer");
 
@@ -42,7 +43,7 @@ const storage = multer.diskStorage({
     }
   });
   
-router.post("/addPost", upload.single('image'),addPost);
+router.post("/addPost",authMiddleware, upload.single('image'),addPost);
 
 /**
  * @swagger
@@ -54,7 +55,7 @@ router.post("/addPost", upload.single('image'),addPost);
  *       200:
  *         description: Liste des posts
  */
-router.get("/getallPost", postController.getallPost);
+router.get("/getallPost",authMiddleware,postController.getallPost);
 
 /**
  * @swagger
@@ -73,7 +74,7 @@ router.get("/getallPost", postController.getallPost);
  *       200:
  *         description: Détails du post
  */
-router.get("/getPostbyId/:id", postController.getPostById);
+router.get("/getPostbyId/:id",authMiddleware, postController.getPostById);
 
 /**
  * @swagger
@@ -92,7 +93,7 @@ router.get("/getPostbyId/:id", postController.getPostById);
  *       200:
  *         description: Post supprimé avec succès
  */
-router.delete("/deletePost/:id", postController.deletePost);
+router.delete("/deletePost/:id",authMiddleware,postController.deletePost);
 
 /**
  * @swagger
@@ -122,6 +123,7 @@ router.delete("/deletePost/:id", postController.deletePost);
  *       200:
  *         description: Post mis à jour avec succès
  */
-router.put("/updatePost/:id", postController.updatePost);
+router.put("/updatePost/:id", authMiddleware,postController.updatePost);
+router.get("/getPostAvecCommentaires/:id",authMiddleware, postController.getPostAvecCommentaires);
 
 module.exports = router;

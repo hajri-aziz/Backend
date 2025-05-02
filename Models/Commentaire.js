@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
 const CommentaireSchema = new mongoose.Schema({
-  idAuteur: { type: mongoose.Schema.Types.ObjectId },
-  idPost: { type: mongoose.Schema.Types.ObjectId },
+  idAuteur: { type: mongoose.Schema.Types.ObjectId ,ref: "User" },
+  idPost: { type: mongoose.Schema.Types.ObjectId ,ref: "Post" },
   contenu: String,
   date_creation:Date,
   
