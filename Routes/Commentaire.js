@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const commentController = require("../Controller/ForumController");
+const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
 
 /**
  * @swagger
@@ -25,7 +26,7 @@ const commentController = require("../Controller/ForumController");
  *       201:
  *         description: Commentaire ajouté avec succès
  */
-router.post("/addComment", commentController.addCommentaire);
+router.post("/addComment",authMiddleware, commentController.addCommentaire);
 
 /**
  * @swagger
@@ -37,7 +38,7 @@ router.post("/addComment", commentController.addCommentaire);
  *       200:
  *         description: Liste des commentaires
  */
-router.get("/getallComment", commentController.getallCommentaire);
+router.get("/getallComment",authMiddleware, commentController.getallCommentaire);
 
 /**
  * @swagger
@@ -56,7 +57,7 @@ router.get("/getallComment", commentController.getallCommentaire);
  *       200:
  *         description: Commentaire trouvé
  */
-router.get("/getCommentbyId/:id", commentController.getCommentaireById);
+router.get("/getCommentbyId/:id",authMiddleware, commentController.getCommentaireById);
 
 /**
  * @swagger
@@ -75,7 +76,7 @@ router.get("/getCommentbyId/:id", commentController.getCommentaireById);
  *       200:
  *         description: Commentaire supprimé avec succès
  */
-router.delete("/deleteComment/:id", commentController.deleteComment);
+router.delete("/deleteComment/:id",authMiddleware, commentController.deleteComment);
 
 /**
  * @swagger
@@ -103,6 +104,6 @@ router.delete("/deleteComment/:id", commentController.deleteComment);
  *       200:
  *         description: Commentaire mis à jour avec succès
  */
-router.put("/updateComment/:id", commentController.updateComment);
+router.put("/updateComment/:id", authMiddleware,commentController.updateComment);
 
 module.exports = router;

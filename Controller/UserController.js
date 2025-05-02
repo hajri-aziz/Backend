@@ -82,7 +82,7 @@ const secretKey = process.env.JWT_SECRET;
 // Fonction d'inscription
 async function register(req, res) {
     try {
-        const { nom, prenom, email, password, role,dateNaissance} = req.body;
+        const { nom, prenom, email, password, dateNaissance,telephone } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -96,32 +96,14 @@ async function register(req, res) {
             prenom,
             email,
             password: hashedPassword,
-            role,
-            dateNaissance
+            dateNaissance,
+            telephone,
+            isApproved: false // L'utilisateur est en attente d'approbation
         });
-
-        const token = jwt.sign(
-            {
-                id: user._id,
-                email: user.email,
-                role: user.role
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '2h' }
-        );
 
         await user.save();
-        const newActivity = new Activity({
-            user: user._id,
-            action: 'Inscription réussie'
-        });
-        await newActivity.save();
-
-       
-
         res.status(201).json({
-            message: 'Inscription réussie',
-            token
+            message: 'Inscription réussie. Votre inscription est en attente d\'approbation.'
         });
 
     } catch (err) {
@@ -130,6 +112,27 @@ async function register(req, res) {
     }
 }
 
+async function approveUser(req, res) {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'Utilisateur non trouvé' });
+        }
+
+        // L'administrateur approuve l'utilisateur
+        user.isApproved = true; // L'utilisateur est maintenant approuvé
+        user.role = 'utilisateur'; // Vous pouvez également lui attribuer un rôle ici
+        await user.save();
+
+        res.status(200).json({ message: 'Utilisateur approuvé avec succès' });
+
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+}
+
+
 async function login(req, res) {
     try {
         const { email, password } = req.body;
@@ -137,6 +140,9 @@ async function login(req, res) {
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
+        }
+        if (!user.isApproved) {
+            return res.status(403).json({ message: 'Votre inscription est en attente d\'approbation.' });
         }
 
         // Vérification du statut de l'utilisateur
@@ -200,26 +206,19 @@ async function authorizeUser(req, res) {
 
 async function showusers(req, res) {
     try {
-        // Récupérer les paramètres de la requête
-        const { search, page = 1, limit = 10 } = req.query;
+        const { search } = req.query;
 
-        const skip = (page - 1) * limit; // Calculer le nombre d'éléments à ignorer pour la pagination
-          const query = {};
-        // Ajouter la recherche si le paramètre 'search' est fourni
+        const query = {};
         if (search) {
-            query.nom = { $regex: search, $options: 'i' }; // Recherche insensible à la casse dans le nom
+            query.nom = { $regex: search, $options: 'i' };
         }
 
-        // Récupérer les utilisateurs en fonction de la recherche et de la pagination
-        const users = await User.find(query).skip(skip).limit(limit);
-        const totalUsers = await User.countDocuments(query); // Compter le total des utilisateurs
+        const users = await User.find(query); // Plus de skip ni de limit
+        const totalUsers = users.length;
 
-        // Retourner les utilisateurs et la pagination
         res.status(200).json({
             users,
-            pagination: {
-                totalUsers,
-            }
+            totalUsers
         });
 
     } catch (err) {
@@ -251,16 +250,24 @@ async function showusersbyId(req, res) {
 }
 
 async function showByName(req, res) {
-    const { nom } = req.params; // Récupère le nom depuis l'URL
-    console.log("Nom de l'utilisateur dans l'URL :", nom); // Affiche le nom passé dans l'URL
+    const { nom } = req.params; // Nom dans l'URL
+    const loggedUserName = req.user.nom; // Nom extrait du token
+
+    console.log("Nom de l'utilisateur dans l'URL :", nom);
+    console.log("Nom de l'utilisateur connecté :", loggedUserName);
 
     try {
-        const user = await User.findOne({ nom }); // Recherche l'utilisateur par son nom
+        // Empêche un utilisateur d'accéder aux données d'un autre
+        if (nom !== loggedUserName) {
+            return res.status(403).json({ message: "Accès refusé : vous ne pouvez accéder qu'à vos propres informations." });
+        }
+
+        const user = await User.findOne({ nom });
         if (!user) {
             return res.status(404).json({ message: "Utilisateur non trouvé" });
         }
 
-        // Logique d'activité et réponse
+        // Log activité
         const newActivity = new Activity({
             user: user._id,
             action: 'show by name réussie'
@@ -273,6 +280,7 @@ async function showByName(req, res) {
         res.status(500).json({ message: 'Erreur serveur' });
     }
 }
+
 
 
 async function deleteusers(req, res) {
@@ -374,4 +382,4 @@ async function uploadProfile(req, res) {
 
 
 
-module.exports = {  showusers, showusersbyId, showByName, deleteusers, updateuser, register, login,sendOTP,verifyOTP,authorizeUser ,showActivities,uploadProfile};
+module.exports = {  showusers, showusersbyId, showByName, deleteusers, updateuser, register, login,sendOTP,verifyOTP,authorizeUser ,showActivities,uploadProfile ,approveUser};

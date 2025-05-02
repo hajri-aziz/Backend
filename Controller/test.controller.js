@@ -10,7 +10,11 @@ const mongoose = require('mongoose');
       const query = { 'metadata.status': { $ne: 'archived' } };
 
       if (category && mongoose.Types.ObjectId.isValid(category)) {
+<<<<<<< HEAD
         query.category = new mongoose.Types.ObjectId(category);
+=======
+        query.category = new mongoose.Types(category);
+>>>>>>> 4b7c6440959cd78d595786b86ac087056614f70e
       }
 
       const options = {
@@ -71,9 +75,15 @@ const mongoose = require('mongoose');
       // Create test object
       const test = {
         ...req.body,
+<<<<<<< HEAD
         category: new mongoose.Types.ObjectId(req.body.category),
         questions: req.body.questions.map(id => new mongoose.Types.ObjectId(id)),
         scoringAlgorithm: new mongoose.Types.ObjectId(req.body.scoringAlgorithm),
+=======
+        category: new mongoose.Types(req.body.category),
+        questions: req.body.questions.map(id => new mongoose.Types.String(id)),
+        scoringAlgorithm: new mongoose.Types(req.body.scoringAlgorithm),
+>>>>>>> 4b7c6440959cd78d595786b86ac087056614f70e
         traits: [],
         metadata: {
           ...(req.body.metadata || {}), // Preserve existing metadata if provided
