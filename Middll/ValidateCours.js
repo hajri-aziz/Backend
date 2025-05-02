@@ -1,15 +1,5 @@
-// Middll/validateBody.js
-// Middleware générique pour valider req.body avec une fonction Joi
-module.exports = (validatorFn) => (req, res, next) => {
-    const { error } = validatorFn(req.body);
-    if (error) {
-      return res.status(400).json({ message: error.details[0].message });
-    }
-    next();
-  };
-  
-  
-  // Middll/ValidateCours.js
+ // Middll/ValidateCours.js
+ 
   const Joi = require('joi');
   const joiObjectId = require('joi-objectid');
   Joi.objectId = joiObjectId(Joi);
@@ -42,21 +32,28 @@ module.exports = (validatorFn) => (req, res, next) => {
   // Validation des sessions de cours
   const validateCoursSession = (data) => {
     const schema = Joi.object({
-      title:      Joi.string().min(3).max(100).required(),
-      cours_id:   Joi.objectId().required(),
-      video_url:  Joi.string().uri().required(),
+      title:     Joi.string().min(3).max(100).required(),
+      cours_id:  Joi.objectId().required(),
+      video_url: Joi.string().uri().required(),
       duration: Joi.object({
-        amount: Joi.number().positive().required()
-                     .messages({ 'number.base': '"duration.amount" doit être un nombre' }),
-        unit:   Joi.string().valid('minutes').default('minutes')
-      }).required(),
-      startdate:  Joi.date().required(),
-      enddate:    Joi.date().required(),
-      location:   Joi.string().required(),
-      capacity:   Joi.number().integer().positive().required(),
-      status:     Joi.string()
-                    .valid('active','inactive','completed','scheduled','in-progress','cancelled')
-                    .required()
+        amount: Joi.number()
+          .positive()
+          .required()
+          .messages({ 'number.base': '"duration.amount" doit être un nombre positif' }),
+        unit: Joi.string()
+          .valid('minutes')
+          .default('minutes')
+      })
+      .required()
+      .messages({ 'object.base': '"duration" doit être un objet { amount, unit }' }),
+  
+      startdate: Joi.date().required(),
+      enddate:   Joi.date().required(),
+      location:  Joi.string().required(),
+      capacity:  Joi.number().required(),
+      status:    Joi.string()
+        .valid('active','inactive','completed','scheduled','in-progress','cancelled')
+        .required()
     });
   
     return schema.validate(data);
