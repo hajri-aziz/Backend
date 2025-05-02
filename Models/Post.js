@@ -1,9 +1,9 @@
+const { ref } = require("joi");
 const mongoose = require("mongoose");
 
 const PostSchema = new mongoose.Schema({
   idAuteur: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  idPost: { type: mongoose.Schema.Types.ObjectId },
-  idCommentaire: [{ type: mongoose.Schema.Types.ObjectId }],
+  idCommentaire: [{ type: mongoose.Schema.Types.ObjectId , ref: "Commentaire" }],
   titre: String,
   contenu: String,
   date_creation:Date,
