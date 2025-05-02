@@ -206,26 +206,19 @@ async function authorizeUser(req, res) {
 
 async function showusers(req, res) {
     try {
-        // Récupérer les paramètres de la requête
-        const { search, page = 1, limit = 10 } = req.query;
+        const { search } = req.query;
 
-        const skip = (page - 1) * limit; // Calculer le nombre d'éléments à ignorer pour la pagination
-          const query = {};
-        // Ajouter la recherche si le paramètre 'search' est fourni
+        const query = {};
         if (search) {
-            query.nom = { $regex: search, $options: 'i' }; // Recherche insensible à la casse dans le nom
+            query.nom = { $regex: search, $options: 'i' };
         }
 
-        // Récupérer les utilisateurs en fonction de la recherche et de la pagination
-        const users = await User.find(query).skip(skip).limit(limit);
-        const totalUsers = await User.countDocuments(query); // Compter le total des utilisateurs
+        const users = await User.find(query); // Plus de skip ni de limit
+        const totalUsers = users.length;
 
-        // Retourner les utilisateurs et la pagination
         res.status(200).json({
             users,
-            pagination: {
-                totalUsers,
-            }
+            totalUsers
         });
 
     } catch (err) {
