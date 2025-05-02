@@ -15,9 +15,9 @@ const {
   getSessionsByUser
 } = require('../Controller/CoursController');
 
-const validateBody = require('../middll/validateBody');
-const { validateCoursSession, validateSessionInscription } = require('../middll/ValidateCours');
-const { authMiddleware, checkRole } = require('../middll/authMiddleware');
+const validateBody = require('../Middll/validateBody');
+const { validateCoursSession, validateSessionInscription } = require('../Middll/ValidateCours');
+const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
 
 /**
  * @swagger
