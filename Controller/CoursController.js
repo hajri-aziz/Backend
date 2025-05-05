@@ -1,5 +1,4 @@
 // Controller/CoursController.js
-
 const CoursCategory   = require('../Models/CoursCategory');
 const Cours           = require('../Models/Cours');
 const CoursSession    = require('../Models/CoursSession');

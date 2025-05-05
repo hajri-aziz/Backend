@@ -43,7 +43,7 @@ const storage = multer.diskStorage({
     }
   });
   
-router.post("/addPost",authMiddleware, upload.single('image'),addPost);
+router.post("/addPost",authMiddleware,checkRole("admin"), upload.single('image'),addPost);
 
 /**
  * @swagger

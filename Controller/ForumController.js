@@ -1,5 +1,5 @@
-const Post = require('../models/Post');
-const Commentaire = require('../models/Commentaire');
+const Post = require('../Models/Post');
+const Commentaire = require('../Models/Commentaire');
 const Message = require('../models/Message');
 const Group = require('../models/Group');
 const mongoose = require('mongoose');
