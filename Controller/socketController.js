@@ -1,6 +1,6 @@
 // Import du modèle de message depuis les modèles Mongoose
-const Message = require("../models/Message");
-const Group = require("../models/Group");
+const Message = require("../Models/Message");
+const Group = require("../Models/Group");
 
 // Import de la fonction uuidv4 pour générer des IDs uniques
 const { v4: uuidv4 } = require("uuid");

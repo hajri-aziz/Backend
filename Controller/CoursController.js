@@ -1,9 +1,10 @@
 // Controller/CoursController.js
 
-const CoursCategory = require('../Models/CoursCategory');
-const Cours         = require('../Models/Cours');
-const CoursSession  = require('../Models/CoursSession');
-const User          = require('../Models/User');           // modèle 'user'
+const CoursCategory   = require('../Models/CoursCategory');
+const Cours           = require('../Models/Cours');
+const CoursSession    = require('../Models/CoursSession');
+const User            = require('../Models/User');
+
 const { sendEmail, emailTemplates, scheduleReminder } = require('../services/mailer');
 
 // --- Catégories ---

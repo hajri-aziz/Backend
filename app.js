@@ -106,7 +106,6 @@ const groupeRouter = require("./Routes/group");
 app.use("/group", groupeRouter);
  
 // Route pour mettre à jour une catégorie de cours
-const CoursCategory = require('./Models/CoursCategory');
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
   const { title, description } = req.body;
