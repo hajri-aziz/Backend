@@ -135,11 +135,9 @@ const io = socketIo(server, {
  
 // Initialisation WebSocket
 const socketController = require("./Controller/socketController");
-const messageApi = socketController(io);
+ socketController(io);
  
-// Routes REST liées aux messages
-app.get("/message/conversation", messageApi.getConversationMessages);
-app.get("/message/conversations/:userId", messageApi.getUserConversations);
+
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");
