@@ -1,87 +1,81 @@
+// Chargement des variables d'environnement
+require('dotenv').config({ path: './.env' });
+
+// Importation des dépendances
 const http = require("http");
 const express = require("express");
 const path = require("path");
 const socketIo = require("socket.io");
- 
- 
- 
+const mongo = require("mongoose");
+const cors = require('cors');
+const db = require("./Config/db.json");
+
 // Importation des routes
 const dispoRouter = require("./Routes/Dispo");
 const rendezvousRouter = require("./Routes/RendezVous");
 const eventsRouter = require("./Routes/Evenement");
 const notificationRouter = require("./Routes/Notification");
- 
- 
- 
+const testRoutes = require('./Routes/testRoutes');
+const UserRouter = require('./Routes/User');
+const coursCategoryRoutes = require('./Routes/CoursCategory');
+const coursRoutes = require('./Routes/Cours');
+const coursSessionRoutes = require('./Routes/CoursSession');
+const postRouter = require("./Routes/Post");
+const commentaireRouter = require("./Routes/Commentaire");
+const groupeRouter = require("./Routes/group");
+
+// Importation des modèles
+const CoursCategory = require('./Models/CoursCategory');
+
 // Importation des contrôleurs
 const planningController = require("./Controller/PlanningController");
- 
-// Connexion MongoDB
-const mongo = require("mongoose");
-const db = require("./Config/db.json");
- 
+const socketController = require("./Controller/socketController");
 
+// Connexion MongoDB
 if (!db.url) {
   console.error("Erreur : L'URL de la base de données est manquante !");
   process.exit(1);
 }
- 
+
 mongo
   .connect(db.url)
   .then(() => console.log("Database connected ✅"))
   .catch((err) => console.error("Erreur de connexion MongoDB ❌", err));
- 
-// Création de l'application Express  
+
+// Création de l'application Express
 var app = express();
+
+// Configuration du moteur de vue
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "twig");
-app.use(express.json());  // Middleware pour analyser les requêtes JSON
- 
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "twig");
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "twig");
 
- 
+// Middlewares
+app.use(express.json());
+app.use(express.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use('/uploads', express.static('Uploads'));
+app.use('/uploads/posts', express.static('uploads/posts'));
+
 // Configuration des routes
 app.use("/apis", dispoRouter);
 app.use("/apis", rendezvousRouter);
 app.use("/apis", eventsRouter);
 app.use("/apis", notificationRouter);
- 
- 
- 
-// Chargement des variables d'environnement en premier
-require('dotenv').config({ path: './.env' });
-require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
- 
-const cors = require('cors');
- 
-// Middleware
-app.use(express.json()); // Pour analyser les requêtes JSON
-app.use(cors());         // Pour gérer les CORS
-app.use('/uploads', express.static('uploads')); // Pour servir les fichiers statiques (uploads)
- 
-// Vues
-app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
-app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
- 
-// ======== ROUTES ========
-const testRoutes = require('./Routes/testRoutes'); // Ajustez le chemin selon votre structure
-app.use('/api/test', testRoutes);
-// Routes pour les utilisateurs
-const UserRouter = require('./Routes/User');
+app.use("/api/test", testRoutes);
 app.use('/user', UserRouter);
- 
-// Routes pour les catégories de cours
-const CoursCategory = require('./Models/CoursCategory');
-const coursCategoryRoutes = require('./Routes/CoursCategory');
 app.use('/api/coursecategories', coursCategoryRoutes);
- 
-// Routes pour les cours
-const coursRoutes = require('./Routes/Cours');
 app.use('/api/cours', coursRoutes);
- 
-// Routes pour les sessions de cours
-const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
- 
+app.use("/post", postRouter);
+app.use("/commentaire", commentaireRouter);
+app.use("/group", groupeRouter);
+
 
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
@@ -95,62 +89,29 @@ app.post('/api/coursecategories/update/:id', async (req, res) => {
       { new: true }
     );
 
-   
     if (!updatedCategory) {
       return res.status(404).json({ message: 'Category not found' });
     }
-   
 
     res.status(200).json(updatedCategory);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
- 
+
 // Création du serveur HTTP + WebSocket
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*", // Autoriser les requêtes depuis toutes les origines
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
- 
-// Importation des contrôleurs
-const socketController = require("./Controller/socketController"); // Gestion WebSocket
- 
-// Initialiser la logique WebSocket avec io
-const messageApi = socketController(io); // Ce retour contient les fonctions REST
-//
- 
-// Importation des routes
-const postRouter = require("./Routes/Post");
-const commentaireRouter = require("./Routes/Commentaire");
-const groupeRouter = require("./Routes/group");
- 
- 
- 
-// Configuration du moteur de vue
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "twig");
- 
-// Middlewares
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
- 
-app.use('/uploads/posts', express.static('uploads/posts'));
- 
-// 📌 Configuration des routes REST
-app.use("/post", postRouter);
-app.use("/commentaire", commentaireRouter);
-app.use("/group", groupeRouter);
 
- 
-// Routes REST liées aux messages
-app.get("/message/conversation", messageApi.getConversationMessages);
-app.get("/message/conversations/:userId", messageApi.getUserConversations);
- 
+socketController(io);
+
+// Lancement du job de notification
+require('./Jobs_Notification/cron');
+
 // Création et démarrage du serveur
 server.listen(3000, () => console.log("✅ Server is running on port 3000"));
- 
- 

@@ -1,6 +1,6 @@
 // Import du modèle de message depuis les modèles Mongoose
-const Message = require("../Models/Message");
-const Group = require("../Models/Group");
+const Message = require("../models/Message");
+const Group = require("../models/Group");
 
 // Import de la fonction uuidv4 pour générer des IDs uniques
 const { v4: uuidv4 } = require("uuid");
@@ -37,7 +37,7 @@ module.exports = function(io) {
         console.log("ID de l'expéditeur :", expediteurId);
 
         // Gestion de l'envoi de message One-to-One
-        socket.on("sendMessage", async (data) => {
+socket.on("sendMessage", async (data) => {
             try {
                 if (typeof data === "string") data = JSON.parse(data);
         
@@ -88,267 +88,45 @@ module.exports = function(io) {
                 console.error("Erreur lors de l'envoi du message :", error);
             }
         });
-        
+// Gestion de l'envoi de message One-to-Many (à plusieurs destinataires)
+socket.on("send-group-message", async ({ groupId, expediteurId, contenu }) => {
+  try {
+    // Vérifie si le groupe existe
+    const group = await Group.findById(groupId);
+    if (!group || !group.members.includes(expediteurId)) return;
 
-        // Gestion de l'envoi de message One-to-Many (à plusieurs destinataires)
-        socket.on("sendMessageToMany", async (data) => {
-            try {
-                if (typeof data === "string") data = JSON.parse(data);
+    // Crée le message
+    const newMessage = new Message({
+      expediteurId,
+      contenu,
+      isGroupMessage: true,
+      groupId
+    });
 
-                // Vérification que tous les champs nécessaires sont présents
-                if (!data.destinatairesIds || !Array.isArray(data.destinatairesIds) || !data.contenu) {
-                    console.error("Erreur : destinatairesIds (array) et contenu sont nécessaires !");
-                    return;
-                }
+    await newMessage.save();
 
-                // Parcourir tous les destinataires
-                for (const destinataireId of data.destinatairesIds) {
-                    const key = getKey(expediteurId, destinataireId);
+    // Met à jour le dernier message dans le groupe
+    await Group.findByIdAndUpdate(groupId, {
+      lastMessage: contenu
+    });
 
-                    // Créer une nouvelle conversation si elle n'existe pas
-                    if (!activeConversations.has(key)) { 
-                        //activateConversations: est une map ,Stocker en mémoire les conversations en cours entre utilisateurs connectés.
-                        activeConversations.set(key, {
-                            conversationId: uuidv4(),
-                            membres: [expediteurId, destinataireId],
-                            messages: []
-                        });
-                    }
+    // Envoie le message à tous les membres du groupe
+    io.to(groupId).emit("new-group-message", {
+      _id: newMessage._id,
+      expediteurId,
+      contenu,
+      groupId,
+      dateEnvoi: newMessage.dateEnvoi
+    });
 
-                    // Création du message
-                    const message = {
-                        expediteurId,
-                        destinataireId,
-                        contenu: data.contenu,
-                        dateEnvoi: new Date(),
-                        reactions: [emoji, userId], // Initialiser les réactions
-                        isGroupMessage: true,
-                        status: 'livré'
-                    };
-
-                    // Ajout du message à la conversation
-                    activeConversations.get(key).messages.push(message);
-
-                    // Envoi du message au destinataire s’il est connecté
-                    const destinataireSocketId = users.get(destinataireId);
-                    if (destinataireSocketId) {
-                        io.to(destinataireSocketId).emit("newMessage", message);
-                        console.log("Message envoyé à :", destinataireId);
-                    } else {
-                        // Sinon, notifier l'expéditeur pour ce destinataire
-                        socket.emit("messageStatus", {
-                            destinataireId,
-                            status: "non-livré",
-                            message: "Destinataire non connecté, message enregistré"
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error("Erreur lors de l'envoi du message one-to-many :", error);
-            }
-        });
-
-        //*********************************REACTIONS ******************** */
-
-         // Écouter les réactions
-// Remplacer l'événement 'toggleReaction' par 'reaction' pour être cohérent
-// Dans votre contrôleur Socket.IO
-socket.on('reaction', async (data) => {
-    try {
-        console.log('📌 Réaction reçue:', data); // Debug
-        
-        // Validation des données
-        if (!data.messageId || !data.emoji || !data.userId) {
-            throw new Error('Données manquantes');
-        }
-
-        if (!mongoose.Types.ObjectId.isValid(data.messageId)) {
-            throw new Error('ID de message invalide');
-        }
-
-        // Trouver le message
-        const message = await Message.findById(data.messageId);
-        if (!message) {
-            throw new Error('Message non trouvé');
-        }
-
-        // Vérifier les permissions (exemple simplifié)
-        const canReact = message.expediteurId === data.userId || 
-                        message.destinataireId === data.userId ||
-                        (message.isGroupMessage && await Group.exists({ 
-                            _id: message.groupId, 
-                            membres: data.userId 
-                        }));
-
-        if (!canReact) {
-            throw new Error('Permission refusée');
-        }
-
-        // Gestion des réactions (toggle)
-        const reactionIndex = message.reactions.findIndex(
-            r => r.userId.equals(data.userId) && r.emoji === data.emoji
-        );
-
-        if (reactionIndex !== -1) {
-            message.reactions.splice(reactionIndex, 1); // Retirer la réaction
-        } else {
-            message.reactions.push({ // Ajouter la réaction
-                userId: data.userId,
-                emoji: data.emoji
-            });
-        }
-
-        await message.save();
-
-        // Diffuser la mise à jour
-        const room = message.isGroupMessage ? 
-            `group_${message.groupId}` : 
-            `conv_${[message.expediteurId, message.destinataireId].sort().join('_')}`;
-
-        io.to(room).emit('reaction_updated', {
-            messageId: message._id,
-            reactions: message.reactions
-        });
-
-        console.log('✅ Réaction traitée - Room:', room); // Debug
-
-    } catch (error) {
-        console.error('❌ Erreur:', error.message);
-        socket.emit('reaction_error', {
-            message: error.message
-        });
-    }
+  } catch (err) {
+    console.error("Erreur lors de l'envoi du message de groupe :", err);
+  }
 });
-socket.on('toggleReaction', async (data) => {
-    try {
-        console.log('Données reçues:', data);
-        
-        // Validation des données
-        if (!data.messageId || !data.emoji || !data.userId) {
-            throw new Error('Données manquantes');
-        }
 
-        if (!mongoose.Types.ObjectId.isValid(data.messageId)) {
-            throw new Error('ID de message invalide');
-        }
 
-        // Trouver le message
-        const message = await Message.findById(data.messageId);
-        if (!message) {
-            throw new Error('Message non trouvé');
-        }
 
-        // Vérifier si l'utilisateur peut réagir
-        const canReact = message.expediteurId === data.userId || 
-                        message.destinataireId === data.userId ||
-                        (message.isGroupMessage && await Group.exists({
-                            _id: message.groupId,
-                            membres: data.userId
-                        }));
 
-        if (!canReact) {
-            throw new Error('Permission refusée');
-        }
-
-        // Gestion des réactions (toggle)
-        const reactionIndex = message.reactions.findIndex(
-            r => r.userId.equals(data.userId) && r.emoji === data.emoji
-        );
-
-        if (reactionIndex !== -1) {
-            // Retirer la réaction existante
-            message.reactions.splice(reactionIndex, 1);
-            console.log('Réaction retirée');
-        } else {
-            // Ajouter nouvelle réaction (en supprimant d'abord les autres réactions du user)
-            message.reactions = message.reactions.filter(r => !r.userId.equals(data.userId));
-            message.reactions.push({
-                userId: data.userId,
-                emoji: data.emoji,
-                date: new Date()
-            });
-            console.log('Nouvelle réaction ajoutée');
-        }
-
-        // Sauvegarder
-        const updatedMessage = await message.save();
-        console.log('Message sauvegardé:', updatedMessage);
-
-        // Diffuser la mise à jour
-        const room = message.isGroupMessage ? 
-            `group_${message.groupId}` : 
-            `conv_${[message.expediteurId, message.destinataireId].sort().join('_')}`;
-
-        io.to(room).emit('reactionUpdated', {
-            messageId: message._id,
-            reactions: message.reactions
-        });
-
-    } catch (error) {
-        console.error('Erreur:', error.message);
-        socket.emit('reactionError', { error: error.message });
-    }
-});
-//*********************************SOCKET GROUP****************** */
-// Gestion des groupes avec Socket.IO
-socket.on("joinGroup", (groupId) => {
-    // Ajouter l'utilisateur à ce groupe
-    if (!groupUsers.has(groupId)) {
-      groupUsers.set(groupId, new Set());
-    }
-    groupUsers.get(groupId).add(expediteurId);
-    
-    // Abonner l'utilisateur au canal du groupe
-    socket.join(`group:${groupId}`);
-    console.log(`Utilisateur ${expediteurId} a rejoint le groupe ${groupId}`);
-  });
-  
-socket.on("leaveGroup", (groupId) => {
-    // Retirer l'utilisateur du groupe
-    if (groupUsers.has(groupId)) {
-      groupUsers.get(groupId).delete(expediteurId);
-    }
-    socket.leave(`group:${groupId}`);
-    console.log(`Utilisateur ${expediteurId} a quitté le groupe ${groupId}`);
-  });
-  
-socket.on("sendGroupMessage", async (data) => {
-    try {
-      if (typeof data === "string") data = JSON.parse(data);
-      
-      // Vérifier que les données nécessaires sont présentes
-      if (!data.groupId || !data.contenu) {
-        console.error("Erreur : groupId et contenu sont nécessaires pour un message de groupe !");
-        return;
-      }
-      
-      // Créer le message
-      const message = {
-        expediteurId,
-        isGroupMessage: true,
-        groupId: data.groupId,
-        contenu: data.contenu,
-        dateEnvoi: new Date(),
-        status: 'livré'
-      };
-      
-      // Sauvegarder directement dans la base de données pour les messages de groupe
-      // pour avoir une persistance immédiate
-      const newMessage = await Message.create(message);
-      
-      // Envoyer le message à tous les membres du groupe
-      io.to(`group:${data.groupId}`).emit("newGroupMessage", {
-        ...message,
-        _id: newMessage._id  // Inclure l'ID généré par MongoDB
-      });
-      
-      console.log(`Message envoyé au groupe ${data.groupId}`);
-    } catch (error) {
-      console.error("Erreur lors de l'envoi du message de groupe :", error);
-    }
-  });
-
-        // Lorsqu’un utilisateur se déconnecte
 socket.on("disconnect", async () => {
             console.log("🔴 Un utilisateur s'est déconnecté :", socket.id);
 
@@ -407,208 +185,4 @@ socket.on("disconnect", async () => {
                 }
             }
         });
-    });
-//*******************************************methode APIREST******************************************** */
-    // Contrôleur pour récupérer les messages d'une conversation spécifique
-async function getConversationMessages(req, res) {
-        try {
-            const { userId, otherUserId } = req.query;
-            if (!userId || !otherUserId) {
-                return res.status(400).send("Les IDs des deux utilisateurs sont nécessaires !");
-            }
-
-            const conversationId = getKey(userId, otherUserId);
-            const messages = await Message.find({ conversationId }).sort({ dateEnvoi: 1 });
-
-            if (messages.length > 0) {
-                const fullConversation = JSON.parse(messages[0].contenu);
-                return res.status(200).json(fullConversation);
-            }
-
-            res.status(200).json([]);
-        } catch (err) {
-            console.error("Erreur lors de la récupération des messages :", err);
-            res.status(500).send("Erreur serveur");
-        }
-    }
-
-    // Contrôleur pour récupérer toutes les conversations d’un utilisateur
-async function getUserConversations(req, res) {
-        try {
-            const { userId } = req.params;
-            if (!userId) {
-                return res.status(400).send("L'ID de l'utilisateur est nécessaire !");
-            }
-
-            const conversations = await Message.find({
-                $or: [
-                    { expediteurId: userId },
-                    { destinataireId: userId }
-                ]
-            }).sort({ dateEnvoi: -1 });
-
-            res.status(200).json(conversations);
-        } catch (err) {
-            console.error("Erreur lors de la récupération des conversations :", err);
-            res.status(500).send("Erreur serveur");
-        }
-    }
-//******************************Reactions Message****************************************** */
-
-// Remplacer la fonction addReaction existante par celle-ci
-async function addReaction(req, res) {
-    try {
-        const { messageId } = req.params;
-        const { emoji, userId } = req.body; // userId provient du body pour le test, normalement du token
-
-        // Vérifier si le messageId est valide
-        if (!mongoose.Types.ObjectId.isValid(messageId)) {
-            return res.status(400).json({ message: "ID de message invalide" });
-        }
-        
-        // Trouver le message
-        const message = await Message.findById(messageId);
-        if (!message) {
-            return res.status(404).json({ message: "Message non trouvé" });
-        }
-        
-        // Vérifier si l'utilisateur a déjà réagi avec cet emoji
-        const existingReactionIndex = message.reactions.findIndex(
-            reaction => reaction.userId.toString() === userId.toString() && reaction.emoji === emoji
-        );
-        
-        if (existingReactionIndex !== -1) {
-            // Supprimer la réaction si elle existe déjà (toggle)
-            message.reactions.splice(existingReactionIndex, 1);
-        } else {
-            // Ajouter la nouvelle réaction
-            message.reactions.push({
-                userId,
-                emoji
-            });
-        }
-        
-        // Sauvegarder les modifications
-        await message.save();
-        
-        // Si WebSocket est disponible, émettre une mise à jour
-        if (req.app.io) {
-            const room = message.isGroupMessage ? message.groupId.toString() : message.conversationId;
-            req.app.io.to(room).emit('reactionUpdated', {
-                messageId: message._id,
-                reactions: message.reactions
-            });
-        }
-        
-        return res.status(200).json({
-            message: "Réaction mise à jour avec succès",
-            reactions: message.reactions
-        });
-    } catch (error) {
-        console.error("Erreur lors de la gestion de la réaction:", error);
-        res.status(500).json({ message: "Erreur serveur", error: error.message });
-    }
-}
-// Ajouter ou supprimer une réaction
-exports.toggleReaction = async (req, res) => {
-    try {
-      const { messageId } = req.params;
-      const { emoji } = req.body;
-      const userId = req.user._id; // Supposons que l'ID utilisateur est disponible via middleware d'authentification
-      
-      // Vérifier si le messageId est valide
-      if (!mongoose.Types.ObjectId.isValid(messageId)) {
-        return res.status(400).json({ message: "ID de message invalide" });
-      }
-      
-      // Trouver le message
-      const message = await Message.findById(messageId);
-      if (!message) {
-        return res.status(404).json({ message: "Message non trouvé" });
-      }
-      
-      // Vérifier si l'utilisateur a déjà réagi avec cet emoji
-      const existingReactionIndex = message.reactions.findIndex(
-        reaction => reaction.userId.toString() === userId.toString() && reaction.emoji === emoji
-      );
-      
-      if (existingReactionIndex !== -1) {
-        // Supprimer la réaction si elle existe déjà (toggle off)
-        message.reactions.splice(existingReactionIndex, 1);
-      } else {
-        // Ajouter la nouvelle réaction
-        message.reactions.push({
-          userId,
-          emoji
-        });
-      }
-      
-      // Sauvegarder les modifications
-      await message.save();
-      
-      return res.status(200).json({
-        message: "Réaction mise à jour avec succès",
-        reactions: message.reactions
-      });
-    } catch (error) {
-      console.error("Erreur lors de la gestion de la réaction:", error);
-      res.status(500).json({ message: "Erreur serveur", error: error.message });
-    }
-  };
-  
-  // Récupérer toutes les réactions d'un message
-exports.getReactions = async (req, res) => {
-    try {
-      const { messageId } = req.params;
-      
-      if (!mongoose.Types.ObjectId.isValid(messageId)) {
-        return res.status(400).json({ message: "ID de message invalide" });
-      }
-      
-      const message = await Message.findById(messageId)
-        .populate('reactions.userId', 'nom prenom photo'); // Ajustez les champs selon votre modèle User
-      
-      if (!message) {
-        return res.status(404).json({ message: "Message non trouvé" });
-      }
-      
-      res.status(200).json({
-        messageId,
-        reactions: message.reactions
-      });
-    } catch (error) {
-      console.error("Erreur lors de la récupération des réactions:", error);
-      res.status(500).json({ message: "Erreur serveur", error: error.message });
-    }
-   };
-async function getReactions(req, res) {
-    try {
-        const { messageId } = req.params;
-        
-        if (!mongoose.Types.ObjectId.isValid(messageId)) {
-            return res.status(400).json({ message: "ID de message invalide" });
-        }
-        
-        const message = await Message.findById(messageId);
-        if (!message) {
-            return res.status(404).json({ message: "Message non trouvé" });
-        }
-        
-        res.status(200).json({
-            messageId,
-            reactions: message.reactions
-        });
-    } catch (error) {
-        console.error("Erreur lors de la récupération des réactions:", error);
-        res.status(500).json({ message: "Erreur serveur", error: error.message });
-    }
-}
-    return { 
-        //fct message 
-        getConversationMessages,
-        getUserConversations,
-        addReaction,
-        getReactions
-
-    };
-};
+    }); }
