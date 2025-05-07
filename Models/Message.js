@@ -3,12 +3,12 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   expediteurId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
+    ref: 'user', 
     required: true 
   },
   destinataireId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
+    ref: 'user', 
     required: function() { return !this.isGroupMessage; } 
   },
   contenu: { 
@@ -37,7 +37,7 @@ const messageSchema = new mongoose.Schema({
   reactions: [{
     userId: { 
       type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User', 
+      ref: 'user', 
       required: true 
     },
     emoji: { 
@@ -58,7 +58,7 @@ const messageSchema = new mongoose.Schema({
   readBy: [{ 
     userId: { 
       type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User' 
+      ref: 'user' 
     }, 
     date: { 
       type: Date, 
