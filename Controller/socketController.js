@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
-const Message = require("../models/Message");
-const Group = require("../models/Group");
+const Message = require("../Models/Message");
+const Group = require("../Models/Group");
 const { v4: uuidv4 } = require("uuid");
 
 module.exports = function (io) {
