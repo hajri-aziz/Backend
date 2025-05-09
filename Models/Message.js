@@ -1,41 +1,80 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+
 const messageSchema = new mongoose.Schema({
-  expediteurId: { type: String,required: true,},
-  destinataireId: { type: String, required: true, },
-  contenu: {type: String,required: true,},
-  dateEnvoi: { type: Date,default: Date.now, },
-  isGroupMessage: {type: Boolean,default: false},
-  // Référence au groupe si c'est un message de groupe
-  groupId: {
+  expediteurId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'user', 
+    required: true 
+  },
+  destinataireId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'user', 
+    required: function() { return !this.isGroupMessage; } 
+  },
+destinataireIds: { 
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }], // Tableau d'ObjectId
+    default: [] // Par défaut, un tableau vide
+  },
+  contenu: { 
+    type: String, 
+    required: true 
+  },
+  dateEnvoi: { 
+    type: Date, 
+    default: Date.now 
+  },
+  isGroupMessage: { 
+    type: Boolean, 
+    default: false 
+  },
+  groupId: { 
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
-    required: function() { return this.isGroupMessage; }
+    required: function () {
+      return this.isGroupMessage === true;}
   },
-  // Garder le conversationId pour les messages one-to-one
   conversationId: { 
     type: String, 
     required: function() { return !this.isGroupMessage; },
     index: true 
   },
-   reactions: [{
-        userId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',  // L'utilisateur qui a réagi
-            required: true
-        },
-        emoji: {
-            type: String,  // L'emoji en chaîne de caractères
-            required: true,
-            enum: ['👍', '❤️', '😂', '😮', '😢', '😡']
-        }
-    }],
-  status: { type: String, enum: ['livré', 'non-livré'], default: 'non-livré' }
+  reactions: [{
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'user', 
+      required: true 
+    },
+    emoji: { 
+      type: String, 
+      required: true, 
+      enum: ['👍', '❤️', '😂', '😮', '😢', '😡'] 
+    },
+    date: { 
+      type: Date, 
+      default: Date.now 
+    }
+  }],
+  status: { 
+    type: String, 
+    enum: ['envoyé', 'livré', 'non-livré'], 
+    default: 'envoyé' 
+  },
+  readBy: [{ 
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'user' 
+    }, 
+    date: { 
+      type: Date, 
+      default: Date.now 
+    } 
+  }]
 });
 
-
-
-
-// Index pour accélérer les recherches par conversationId
-messageSchema.index({ conversationId: 1, date_creation: 1 });
+// Index pour accélérer les recherches
+messageSchema.index({ conversationId: 1, dateEnvoi: 1 });
+messageSchema.index({ groupId: 1, dateEnvoi: 1 });
 messageSchema.index({ 'reactions.emoji': 1 });
-module.exports = mongoose.model("Message", messageSchema);
+messageSchema.index({ destinataireIds: 1 });
+
+module.exports = mongoose.models.Message || mongoose.model('Message', messageSchema);

@@ -1,14 +1,12 @@
-const { ref } = require("joi");
 const mongoose = require("mongoose");
 
 const PostSchema = new mongoose.Schema({
-  idAuteur: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  idCommentaire: [{ type: mongoose.Schema.Types.ObjectId , ref: "Commentaire" }],
-  titre: String,
-  contenu: String,
-  date_creation:Date,
+  idAuteur: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
+  titre: { type: String, required: true },
+  contenu: { type: String, required: true },
+  date_creation: { type: Date, default: Date.now },
   image: String,
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User'}]
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }]
 });
 
 module.exports = mongoose.model("Post", PostSchema);

@@ -57,19 +57,24 @@ const User = mongoose.models.user || mongoose.model('user');
             console.log(err);
           }
         }
-  async function getPostAvecCommentaires(req, res) {
+        async function getPostAvecCommentaires(req, res) {
           try {
             const postId = req.params.id;
         
+            // Vérifie que l'ID est bien un ObjectId valide
+            if (!mongoose.Types.ObjectId.isValid(postId)) {
+              return res.status(400).json({ message: "ID de post invalide" });
+            }
+        
             // Récupère le post
-            const post = await Post.findById(postId);
+            const post = await Post.findById(postId).populate('idAuteur', 'nom prenom profileImage');
             if (!post) {
               return res.status(404).json({ message: "Post non trouvé" });
             }
         
             // Récupère les commentaires associés à ce post
             const commentaires = await Commentaire.find({ idPost: postId })
-              .populate('idAuteur', 'nom prenom profileImage'); // optionnel : pour afficher les infos auteur
+              .populate('idAuteur', 'nom prenom profileImage') // Affiche infos de l'auteur
         
             res.status(200).json({
               post,
@@ -80,6 +85,7 @@ const User = mongoose.models.user || mongoose.model('user');
             res.status(500).json({ message: "Erreur lors de la récupération du post" });
           }
         }
+        
   async function deletePost(req, res) {
             try {
               const post = await Post.findByIdAndDelete(req.params.id);
@@ -181,8 +187,87 @@ async function updateComment(req, res) {
 //***********************************CRUD Group******************* ************************************/
 
      
+const getConversationMessages = async (req, res) => {
+  try {
+    const { conversationId } = req.query;
+    // logiques pour récupérer les messages d'une conversation
+    res.status(200).json({ message: `Messages de la conversation ${conversationId}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
 
-     
+const getUserConversations = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    // logiques pour récupérer les conversations de l'utilisateur
+    res.status(200).json({ message: `Conversations pour l'utilisateur ${userId}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+const toggleReaction = async (req, res) => {
+  try {
+    const messageId = req.params.messageId;
+    const { reaction } = req.body;
+    // logiques pour ajouter ou retirer une réaction
+    res.status(200).json({ message: `Réaction ${reaction} appliquée au message ${messageId}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+const createGroup = async (req, res) => {
+  try {
+    const { name, creator, members, admins, lastMessage } = req.body;
+
+    if (!creator) {
+      return res.status(400).json({ error: 'Le champ creator est requis.' });
+    }
+
+    const group = new Group({
+      name,
+      creator,
+      members,
+      admins,
+      lastMessage
+    });
+
+    const savedGroup = await group.save();
+    res.status(201).json({ message: `Groupe ${name} créé`, group: savedGroup });
+
+  } catch (err) {
+    console.error(err); // pour debugger
+    res.status(500).json({ error: 'Erreur serveur lors de la création du groupe.' });
+  }
+};
+const addMember = async (req, res) => {
+  try {
+    const { groupId, newMemberId } = req.body;
+
+    if (!groupId || !newMemberId) {
+      return res.status(400).json({ error: 'groupId et newMemberId sont requis.' });
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Groupe non trouvé.' });
+    }
+
+    // Évite d'ajouter un membre déjà existant
+    if (group.members.includes(newMemberId)) {
+      return res.status(400).json({ error: 'Le membre est déjà dans le groupe.' });
+    }
+
+    group.members.push(newMemberId);
+    await group.save();
+
+    res.status(200).json({ message: `Membre ${newMemberId} ajouté au groupe ${groupId}`, group });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur lors de l\'ajout du membre.' });
+  }
+};
 
 
 
@@ -194,15 +279,16 @@ async function updateComment(req, res) {
         updatePost,
         addCommentaire,
         getallCommentaire,
+        getPostAvecCommentaires,
         getCommentaireById,
         deleteComment,
         updateComment,
-        //createGroup,
-        //joinGroup,
-        //getGroupMessages,
-       // getUserGroups,
-        //searchGroups,
-        getPostAvecCommentaires
+        getConversationMessages,
+        getUserConversations,
+        toggleReaction,
+        createGroup,
+        addMember
+       
         
         
       
