@@ -45,7 +45,9 @@ app.use("/apis", rendezvousRouter);
 app.use("/apis", eventsRouter);
 app.use("/apis", notificationRouter);
  
- 
+ // Utiliser express.static pour servir les fichiers d'images
+app.use('/uploads', express.static('uploads'));
+
  
 // Chargement des variables d'environnement en premier
 require('dotenv').config({ path: './.env' });
@@ -56,8 +58,7 @@ const cors = require('cors');
 // Middleware
 app.use(express.json()); // Pour analyser les requêtes JSON
 app.use(cors());         // Pour gérer les CORS
-app.use('/uploads', express.static('uploads')); // Pour servir les fichiers statiques (uploads)
- 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
 // Vues
 app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
 app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
@@ -138,7 +139,6 @@ app.set("view engine", "twig");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
  
-app.use('/uploads/posts', express.static('uploads/posts'));
  
 // 📌 Configuration des routes REST
 app.use("/post", postRouter);
