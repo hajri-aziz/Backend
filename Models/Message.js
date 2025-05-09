@@ -11,6 +11,10 @@ const messageSchema = new mongoose.Schema({
     ref: 'user', 
     required: function() { return !this.isGroupMessage; } 
   },
+destinataireIds: { 
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }], // Tableau d'ObjectId
+    default: [] // Par défaut, un tableau vide
+  },
   contenu: { 
     type: String, 
     required: true 
@@ -71,5 +75,6 @@ const messageSchema = new mongoose.Schema({
 messageSchema.index({ conversationId: 1, dateEnvoi: 1 });
 messageSchema.index({ groupId: 1, dateEnvoi: 1 });
 messageSchema.index({ 'reactions.emoji': 1 });
+messageSchema.index({ destinataireIds: 1 });
 
 module.exports = mongoose.models.Message || mongoose.model('Message', messageSchema);
