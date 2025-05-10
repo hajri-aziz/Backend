@@ -13,14 +13,13 @@ require('./Jobs_Notification/cron'); // Lancement du job cron au démarrage
  
 // Création de l'application Express
 const app = express();
- 
+app.use(cors()); 
 // Middleware configurations
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use('/uploads', express.static('uploads'));
-app.use('/uploads/posts', express.static('uploads/posts'));
+
+app.use('/uploads/profiles', express.static('uploads/profiles'));
  
 // Configuration des vues
 app.set("views", path.join(__dirname, "views"));
@@ -89,18 +88,15 @@ app.use('/uploads', express.static('uploads'));
 require('dotenv').config({ path: './.env' });
 require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
  
-const cors = require('cors');
  
 // Middleware
 app.use(express.json()); // Pour analyser les requêtes JSON
-app.use(cors());         // Pour gérer les CORS
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
 // Vues
 app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
 app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
  
 // ======== ROUTES ========
-const testRoutes = require('./Routes/testRoutes'); // Ajustez le chemin selon votre structure
 app.use('/api/test', testRoutes);
 // Routes pour les utilisateurs
 const UserRouter = require('./Routes/User');
@@ -115,8 +111,7 @@ app.use('/api/cours', coursRoutes);
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
  
-const postRouter = require("./Routes/Post");
-app.use("/post", postRouter);
+
  
 const commentaireRouter = require("./Routes/Commentaire");
 app.use("/commentaire", commentaireRouter);
@@ -162,8 +157,6 @@ const messageApi = socketController(io); // Ce retour contient les fonctions RES
  
 // Importation des routes
 const postRouter = require("./Routes/Post");
-const commentaireRouter = require("./Routes/Commentaire");
-const groupeRouter = require("./Routes/group");
  
  
  
@@ -174,6 +167,7 @@ app.set("view engine", "twig");
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
  
  
 // 📌 Configuration des routes REST
