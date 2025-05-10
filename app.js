@@ -81,9 +81,28 @@ app.use("/apis", eventsRouter);
 const notificationRouter = require("./Routes/Notification");
 app.use("/apis", notificationRouter);
  
-const testRoutes2 = require('./Routes/testRoutes');
-app.use('/api/test', testRoutes2);
+ // Utiliser express.static pour servir les fichiers d'images
+app.use('/uploads', express.static('uploads'));
+
  
+// Chargement des variables d'environnement en premier
+require('dotenv').config({ path: './.env' });
+require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
+ 
+const cors = require('cors');
+ 
+// Middleware
+app.use(express.json()); // Pour analyser les requêtes JSON
+app.use(cors());         // Pour gérer les CORS
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
+// Vues
+app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
+app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
+ 
+// ======== ROUTES ========
+const testRoutes = require('./Routes/testRoutes'); // Ajustez le chemin selon votre structure
+app.use('/api/test', testRoutes);
+// Routes pour les utilisateurs
 const UserRouter = require('./Routes/User');
 app.use('/user', UserRouter);
  
@@ -137,6 +156,30 @@ const io = socketIo(server, {
 const socketController = require("./Controller/socketController");
  socketController(io);
  
+// Initialiser la logique WebSocket avec io
+const messageApi = socketController(io); // Ce retour contient les fonctions REST
+//
+ 
+// Importation des routes
+const postRouter = require("./Routes/Post");
+const commentaireRouter = require("./Routes/Commentaire");
+const groupeRouter = require("./Routes/group");
+ 
+ 
+ 
+// Configuration du moteur de vue
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "twig");
+ 
+// Middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+ 
+ 
+// 📌 Configuration des routes REST
+app.use("/post", postRouter);
+app.use("/commentaire", commentaireRouter);
+app.use("/group", groupeRouter);
 
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)

@@ -111,7 +111,7 @@ router.delete('/delete/:id', authMiddleware, checkRole("admin"), UserController.
  *       200:
  *         description: Utilisateur mis à jour
  */
-router.put('/update/:id', authMiddleware, UserController.updateuser);
+router.put('/update/:id',upload.single('photo'), authMiddleware, UserController.updateuser);
 
 /**
  * @swagger

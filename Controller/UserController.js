@@ -1,6 +1,6 @@
 const User = require("../Models/User");
-const Activity = require('../Models/ActivitySchema'); // Correspond au nom du fichier
-const bcrypt = require('bcryptjs');
+const Activity = require('../Models/ActivitySchema');
+const upload = require('../Config/uploadConfig');const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer"); // Pour envoyer des emails
 const crypto = require("crypto"); // Pour générer un OTP sécurisé
@@ -82,7 +82,7 @@ const secretKey = process.env.JWT_SECRET;
 // Fonction d'inscription
 async function register(req, res) {
     try {
-        const { nom, prenom, email, password, dateNaissance,telephone } = req.body;
+        const { nom, prenom, email, password, dateNaissance,telephone,isApproved } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -98,7 +98,7 @@ async function register(req, res) {
             password: hashedPassword,
             dateNaissance,
             telephone,
-            isApproved: false // L'utilisateur est en attente d'approbation
+            isApproved, // L'utilisateur est en attente d'approbation
         });
 
         await user.save();
@@ -178,7 +178,12 @@ async function login(req, res) {
         console.log(`Token généré avec succès ! Durée de validité : ${expiresIn}`);
         res.status(200).json({
             message: 'Connexion réussie',
-            token
+            token,
+            user: {
+            id: user._id,
+            email: user.email,
+            role: user.role
+    }
         });
 
     } catch (err) {
@@ -237,7 +242,9 @@ async function showusersbyId(req, res) {
         const user = await User.findById(req.params.id);
         const newActivity = new Activity({
             user: user._id,
-            action: 'show user by id réussie'
+            action: 'show user by id réussie',
+            image: user.imageProfile,  // Nom de l'image (par ex. "profile.jpg")
+
         });
         await newActivity.save();
 
@@ -295,41 +302,49 @@ async function deleteusers(req, res) {
 
 async function updateuser(req, res) {
     try {
-        const userId = req.params.id;
-        // Ne hacher le mot de passe que si un nouveau mot de passe est fourni
-        if (req.body.password) {
-            req.body.password = await bcrypt.hash(req.body.password, 10); // Hacher le mot de passe
-        }
-
-        // Ne pas autoriser la mise à jour du statut
-        if (req.body.status) {
-            delete req.body.status;
-        }
-         if (req.user.role !== 'admin' && req.user.id !== userId) {
-            return res.status(403).json({ message: "Accès refusé : vous ne pouvez modifier que votre propre profil" });
-        }
-        // Mettre à jour l'utilisateur
-        const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        console.log("Données reçues pour update :", req.body);
-        console.log("Mot de passe final envoyé à la base :", req.body.password);
-        const newActivity = new Activity({
-            user: user._id,
-            action: 'Modification réussie'
-        });
-        await newActivity.save();
-
-        
-
-        if (!user) {
-            return res.status(404).json({ message: "Utilisateur non trouvé" });
-        }
-
-        res.status(200).send(user);
+      const userId = req.params.id;
+  
+      // Hacher le mot de passe si fourni
+      if (req.body.password) {
+        req.body.password = await bcrypt.hash(req.body.password, 10);
+      }
+  
+      // Ne pas autoriser la mise à jour du statut
+      if (req.body.status) {
+        delete req.body.status;
+      }
+  
+      // Vérification des permissions
+      if (req.user.role !== 'admin' && req.user.id !== userId) {
+        return res.status(403).json({ message: "Accès refusé : vous ne pouvez modifier que votre propre profil" });
+      }
+  
+      // Si une image a été envoyée, l'ajouter à l'objet update
+      if (req.file) {
+        req.body.profileImage = `/uploads/profiles/${req.file.filename}`;
+      }
+  
+      // Mise à jour de l'utilisateur
+      const user = await User.findByIdAndUpdate(userId, req.body, { new: true });
+  
+      // Log activité
+      const newActivity = new Activity({
+        user: user._id,
+        action: 'Modification réussie'
+      });
+      await newActivity.save();
+  
+      if (!user) {
+        return res.status(404).json({ message: "Utilisateur non trouvé" });
+      }
+  
+      res.status(200).send(user);
     } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: 'Erreur serveur' });
+      console.log(err);
+      res.status(500).json({ message: 'Erreur serveur' });
     }
-}
+  }
+  
 // 🕓 Voir l'historique complet ou par utilisateur
 async function showActivities(req, res) {
   try {
@@ -366,6 +381,7 @@ async function uploadProfile(req, res) {
 
         // Met à jour l'image de profil dans la base de données
         const user = await User.findByIdAndUpdate(userId, { profileImage: imageUrl }, { new: true });
+        
 
         if (!user) {
             return res.status(404).json({ message: "Utilisateur non trouvé" });
