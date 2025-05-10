@@ -83,24 +83,21 @@ app.use("/apis", notificationRouter);
  
  // Utiliser express.static pour servir les fichiers d'images
 app.use('/uploads', express.static('uploads'));
-
+ 
  
 // Chargement des variables d'environnement en premier
 require('dotenv').config({ path: './.env' });
 require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
  
-const cors = require('cors');
  
 // Middleware
 app.use(express.json()); // Pour analyser les requêtes JSON
-app.use(cors());         // Pour gérer les CORS
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Vues
 app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
 app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
  
 // ======== ROUTES ========
-const testRoutes = require('./Routes/testRoutes'); // Ajustez le chemin selon votre structure
 app.use('/api/test', testRoutes);
 // Routes pour les utilisateurs
 const UserRouter = require('./Routes/User');
@@ -114,16 +111,6 @@ app.use('/api/cours', coursRoutes);
  
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
- 
-const postRouter = require("./Routes/Post");
-app.use("/post", postRouter);
- 
-const commentaireRouter = require("./Routes/Commentaire");
-app.use("/commentaire", commentaireRouter);
- 
-const groupeRouter = require("./Routes/group");
-app.use("/group", groupeRouter);
- 
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
@@ -177,10 +164,9 @@ app.use(express.urlencoded({ extended: true }));
  
  
 // 📌 Configuration des routes REST
-app.use("/post", postRouter);
 app.use("/commentaire", commentaireRouter);
 app.use("/group", groupeRouter);
-
+ 
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");
