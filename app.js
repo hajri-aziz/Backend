@@ -82,7 +82,7 @@ app.use("/apis", notificationRouter);
  
  // Utiliser express.static pour servir les fichiers d'images
 app.use('/uploads', express.static('uploads'));
-
+ 
  
 // Chargement des variables d'environnement en premier
 require('dotenv').config({ path: './.env' });
@@ -171,10 +171,9 @@ app.use(express.urlencoded({ extended: true }));
  
  
 // 📌 Configuration des routes REST
-app.use("/post", postRouter);
 app.use("/commentaire", commentaireRouter);
 app.use("/group", groupeRouter);
-
+ 
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");

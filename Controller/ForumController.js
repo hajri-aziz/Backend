@@ -57,7 +57,7 @@ const User = mongoose.models.user || mongoose.model('user');
             console.log(err);
           }
         }
-        async function getPostAvecCommentaires(req, res) {
+  async function getPostAvecCommentaires(req, res) {
           try {
             const postId = req.params.id;
         
@@ -287,10 +287,5 @@ const addMember = async (req, res) => {
         getUserConversations,
         toggleReaction,
         createGroup,
-        addMember
-       
-        
-        
-      
-        
+        addMember 
     }
