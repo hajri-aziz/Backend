@@ -125,5 +125,6 @@ router.delete("/deletePost/:id",authMiddleware,postController.deletePost);
  */
 router.put("/updatePost/:id", authMiddleware,postController.updatePost);
 router.get("/getPostAvecCommentaires/:id",authMiddleware, postController.getPostAvecCommentaires);
+router.post("/toggleLike/:id",authMiddleware, postController.toggleReaction);
 
 module.exports = router;

@@ -108,9 +108,13 @@ app.use('/api/coursecategories', coursCategoryRoutes);
  
 const coursRoutes = require('./Routes/Cours');
 app.use('/api/cours', coursRoutes);
+
+
+app.use('/uploads', express.static('uploads')); // Assurez-vous que le dossier 'uploads' contient vos images
  
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
+
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
@@ -151,7 +155,11 @@ const messageApi = socketController(io); // Ce retour contient les fonctions RES
 const postRouter = require("./Routes/Post");
 const commentaireRouter = require("./Routes/Commentaire");
 const groupeRouter = require("./Routes/group");
- 
+ //frorum routes 
+// 📌 Configuration des routes REST
+app.use("/post", postRouter);
+app.use("/commentaire", commentaireRouter);
+app.use("/group", groupeRouter);
  
  
 // Configuration du moteur de vue
@@ -166,6 +174,8 @@ app.use(express.urlencoded({ extended: true }));
 // 📌 Configuration des routes REST
 app.use("/commentaire", commentaireRouter);
 app.use("/group", groupeRouter);
+
+
  
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
