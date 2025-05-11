@@ -18,8 +18,9 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use('/uploads/profiles', express.static('uploads/profiles'));
+app.use('/uploads/cours', express.static('uploads/cours'));
+
  
 // Configuration des vues
 app.set("views", path.join(__dirname, "views"));
@@ -114,12 +115,6 @@ app.use('/uploads', express.static('uploads')); // Assurez-vous que le dossier '
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
 
- 
-
- 
-
- 
-
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
@@ -176,13 +171,6 @@ app.set("view engine", "twig");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
- 
- 
-
-
-
- 
- 
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");
  
