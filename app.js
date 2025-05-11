@@ -13,14 +13,13 @@ require('./Jobs_Notification/cron'); // Lancement du job cron au démarrage
  
 // Création de l'application Express
 const app = express();
- 
+app.use(cors()); 
 // Middleware configurations
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use('/uploads', express.static('uploads'));
-app.use('/uploads/posts', express.static('uploads/posts'));
+
+app.use('/uploads/profiles', express.static('uploads/profiles'));
  
 // Configuration des vues
 app.set("views", path.join(__dirname, "views"));
@@ -92,7 +91,7 @@ require('./Jobs_Notification/cron'); // lance le job automatiquement au démarra
  
 // Middleware
 app.use(express.json()); // Pour analyser les requêtes JSON
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
 // Vues
 app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
 app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
@@ -114,6 +113,12 @@ app.use('/uploads', express.static('uploads')); // Assurez-vous que le dossier '
  
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
+
+ 
+
+ 
+
+ 
 
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
@@ -153,6 +158,7 @@ const messageApi = socketController(io); // Ce retour contient les fonctions RES
  
 // Importation des routes
 const postRouter = require("./Routes/Post");
+
 const commentaireRouter = require("./Routes/Commentaire");
 const groupeRouter = require("./Routes/group");
  //frorum routes 
@@ -160,7 +166,7 @@ const groupeRouter = require("./Routes/group");
 app.use("/post", postRouter);
 app.use("/commentaire", commentaireRouter);
 app.use("/group", groupeRouter);
- 
+
  
 // Configuration du moteur de vue
 app.set("views", path.join(__dirname, "views"));
@@ -169,11 +175,10 @@ app.set("view engine", "twig");
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
  
  
-// 📌 Configuration des routes REST
-app.use("/commentaire", commentaireRouter);
-app.use("/group", groupeRouter);
+
 
 
  
