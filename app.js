@@ -13,14 +13,13 @@ require('./Jobs_Notification/cron'); // Lancement du job cron au démarrage
  
 // Création de l'application Express
 const app = express();
- 
+app.use(cors()); 
 // Middleware configurations
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use('/uploads', express.static('uploads'));
-app.use('/uploads/posts', express.static('uploads/posts'));
+
+app.use('/uploads/profiles', express.static('uploads/profiles'));
  
 // Configuration des vues
 app.set("views", path.join(__dirname, "views"));
@@ -83,7 +82,7 @@ app.use("/apis", notificationRouter);
  
  // Utiliser express.static pour servir les fichiers d'images
 app.use('/uploads', express.static('uploads'));
-
+ 
  
 // Chargement des variables d'environnement en premier
 require('dotenv').config({ path: './.env' });
@@ -111,6 +110,15 @@ app.use('/api/cours', coursRoutes);
  
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes); 
+ 
+
+ 
+const commentaireRouter = require("./Routes/Commentaire");
+app.use("/commentaire", commentaireRouter);
+ 
+const groupeRouter = require("./Routes/group");
+app.use("/group", groupeRouter);
+ 
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
@@ -149,8 +157,6 @@ const messageApi = socketController(io); // Ce retour contient les fonctions RES
  
 // Importation des routes
 const postRouter = require("./Routes/Post");
-const commentaireRouter = require("./Routes/Commentaire");
-const groupeRouter = require("./Routes/group");
  
  
  
@@ -161,12 +167,13 @@ app.set("view engine", "twig");
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
  
  
 // 📌 Configuration des routes REST
 app.use("/commentaire", commentaireRouter);
 app.use("/group", groupeRouter);
-
+ 
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");

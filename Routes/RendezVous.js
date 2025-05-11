@@ -37,7 +37,7 @@ const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
  *       201:
  *         description: Rendez-vous ajouté
  */
-router.post("/rendezVous",authMiddleware,checkRole("admin"), rendezVousController.addRendezVous);
+router.post("/rendezVous",authMiddleware,checkRole("admin","patient"), rendezVousController.addRendezVous);
 
 /**
  * @swagger

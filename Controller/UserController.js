@@ -302,48 +302,76 @@ async function deleteusers(req, res) {
 
 async function updateuser(req, res) {
     try {
-      const userId = req.params.id;
-  
-      // Hacher le mot de passe si fourni
-      if (req.body.password) {
-        req.body.password = await bcrypt.hash(req.body.password, 10);
-      }
-  
-      // Ne pas autoriser la mise à jour du statut
-      if (req.body.status) {
-        delete req.body.status;
-      }
-  
-      // Vérification des permissions
-      if (req.user.role !== 'admin' && req.user.id !== userId) {
-        return res.status(403).json({ message: "Accès refusé : vous ne pouvez modifier que votre propre profil" });
-      }
-  
-      // Si une image a été envoyée, l'ajouter à l'objet update
-      if (req.file) {
-        req.body.profileImage = `/uploads/profiles/${req.file.filename}`;
-      }
-  
-      // Mise à jour de l'utilisateur
-      const user = await User.findByIdAndUpdate(userId, req.body, { new: true });
-  
-      // Log activité
-      const newActivity = new Activity({
-        user: user._id,
-        action: 'Modification réussie'
-      });
-      await newActivity.save();
-  
-      if (!user) {
-        return res.status(404).json({ message: "Utilisateur non trouvé" });
-      }
-  
-      res.status(200).send(user);
+        const userId = req.params.id;
+        const updates = {};
+
+        // Liste des champs autorisés à être mis à jour
+        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage'];
+        
+        // Copier seulement les champs autorisés et non vides
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined && req.body[field] !== '') {
+                updates[field] = req.body[field];
+            }
+        });
+
+        // Gestion spéciale du mot de passe
+        if (req.body.password && req.body.password.trim() !== '') {
+            updates.password = await bcrypt.hash(req.body.password, 10);
+        }
+
+        // Gestion de l'image
+        if (req.file) {
+            updates.profileImage = `/uploads/profiles/${req.file.filename}`;
+            
+            // Optionnel: Supprimer l'ancienne image du serveur
+            const oldUser = await User.findById(userId);
+            if (oldUser.profileImage) {
+                const oldImagePath = path.join(__dirname, '..', 'public', oldUser.profileImage);
+                fs.unlink(oldImagePath, err => { if (err) console.error('Erreur suppression ancienne image:', err); });
+            }
+        }
+
+        // Vérification des permissions
+        if (req.user.role !== 'admin' && req.user.id !== userId) {
+            return res.status(403).json({ message: "Accès refusé : vous ne pouvez modifier que votre propre profil" });
+        }
+
+        // Mise à jour de l'utilisateur
+        const user = await User.findByIdAndUpdate(
+            userId, 
+            { $set: updates }, // Utilisation de $set pour ne modifier que les champs spécifiés
+            { new: true, runValidators: true }
+        ).select('-password -__v'); // Exclure les champs sensibles
+
+        if (!user) {
+            return res.status(404).json({ message: "Utilisateur non trouvé" });
+        }
+
+        // Log activité
+        await new Activity({
+            user: user._id,
+            action: 'Modification du profil',
+            details: {
+                updatedFields: Object.keys(updates),
+                newImage: !!req.file
+            }
+        }).save();
+
+        res.status(200).json({
+            message: "Profil mis à jour avec succès",
+            user: user,
+            updatedFields: Object.keys(updates)
+        });
+
     } catch (err) {
-      console.log(err);
-      res.status(500).json({ message: 'Erreur serveur' });
+        console.error('Erreur mise à jour utilisateur:', err);
+        res.status(500).json({ 
+            message: 'Erreur serveur',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
     }
-  }
+}
   
 // 🕓 Voir l'historique complet ou par utilisateur
 async function showActivities(req, res) {

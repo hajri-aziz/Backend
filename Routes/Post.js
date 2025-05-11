@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const postController = require("../Controller/ForumController");
 const upload = require('../Middll/uploads');
-const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
+const { authMiddleware } = require('../Middll/authMiddleware');
 const { addPost } = require('../Controller/ForumController');
 const multer = require("multer");
 
