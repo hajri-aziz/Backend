@@ -13,14 +13,13 @@ require('./Jobs_Notification/cron'); // Lancement du job cron au démarrage
  
 // Création de l'application Express
 const app = express();
- 
+app.use(cors()); 
 // Middleware configurations
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use('/uploads', express.static('uploads'));
-app.use('/uploads/posts', express.static('uploads/posts'));
+
+app.use('/uploads/profiles', express.static('uploads/profiles'));
  
 // Configuration des vues
 app.set("views", path.join(__dirname, "views"));
@@ -81,9 +80,25 @@ app.use("/apis", eventsRouter);
 const notificationRouter = require("./Routes/Notification");
 app.use("/apis", notificationRouter);
  
-const testRoutes2 = require('./Routes/testRoutes');
-app.use('/api/test', testRoutes2);
+ // Utiliser express.static pour servir les fichiers d'images
+app.use('/uploads', express.static('uploads'));
  
+ 
+// Chargement des variables d'environnement en premier
+require('dotenv').config({ path: './.env' });
+require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
+ 
+ 
+// Middleware
+app.use(express.json()); // Pour analyser les requêtes JSON
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); 
+// Vues
+app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
+app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
+ 
+// ======== ROUTES ========
+app.use('/api/test', testRoutes);
+// Routes pour les utilisateurs
 const UserRouter = require('./Routes/User');
 app.use('/user', UserRouter);
  
@@ -92,19 +107,19 @@ app.use('/api/coursecategories', coursCategoryRoutes);
  
 const coursRoutes = require('./Routes/Cours');
 app.use('/api/cours', coursRoutes);
+
+
+app.use('/uploads', express.static('uploads')); // Assurez-vous que le dossier 'uploads' contient vos images
  
 const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes);
+
  
-const postRouter = require("./Routes/Post");
-app.use("/post", postRouter);
+
  
-const commentaireRouter = require("./Routes/Commentaire");
-app.use("/commentaire", commentaireRouter);
+
  
-const groupeRouter = require("./Routes/group");
-app.use("/group", groupeRouter);
- 
+
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
@@ -135,11 +150,38 @@ const io = socketIo(server, {
  
 // Initialisation WebSocket
 const socketController = require("./Controller/socketController");
-const messageApi = socketController(io);
+ socketController(io);
  
-// Routes REST liées aux messages
-app.get("/message/conversation", messageApi.getConversationMessages);
-app.get("/message/conversations/:userId", messageApi.getUserConversations);
+// Initialiser la logique WebSocket avec io
+const messageApi = socketController(io); // Ce retour contient les fonctions REST
+//
+ 
+// Importation des routes
+const postRouter = require("./Routes/Post");
+
+const commentaireRouter = require("./Routes/Commentaire");
+const groupeRouter = require("./Routes/group");
+ //frorum routes 
+// 📌 Configuration des routes REST
+app.use("/post", postRouter);
+app.use("/commentaire", commentaireRouter);
+app.use("/group", groupeRouter);
+
+ 
+// Configuration du moteur de vue
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "twig");
+ 
+// Middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+ 
+ 
+
+
+
+ 
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");

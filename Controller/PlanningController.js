@@ -7,10 +7,10 @@ const Notification = require("../Models/Notification");
 // ✅ Ajouter une disponibilité
 async function addDisponibilite(req, res) {
     try {
-      const userId = req.user.id; // Récupéré via le token décodé
+      const id_psychologue = req.user.id; // Utiliser l'ID du psychologue connecté
       console.log(req.body);
       const disponibilite = new Disponibilities({
-        id_psychologue: userId,
+        id_psychologue: id_psychologue,
         date: req.body.date,
         heure_debut: req.body.heure_debut,
         heure_fin: req.body.heure_fin,
@@ -82,17 +82,37 @@ async function addDisponibilite(req, res) {
     }
   }
   
-  // ✅ Récupérer les disponibilités par statut (disponible, occupé, absent)
-  async function getDisponibilitesByStatut(req, res) {
-    try {
-      const disponibilites = await Disponibilities.find({ statut: req.params.statut });
-      res.status(200).json(disponibilites);
-    } catch (err) {
-      console.log(err);
-      res.status(500).json({ message: "Erreur lors du filtrage des disponibilités" });
-    }
-  }
+// Backend: Modifier getDisponibilitesByStatut
+async function getDisponibilitesByStatut(req, res) {
+  try {
+    const { date } = req.query; // Extraire date des query params
+    const statut = req.params.statut; // Extraire statut des params de chemin
+    const userId = req.user.id; // Récupérer l'ID du psychologue depuis le token
+    console.log('Requête reçue:', { statut, date, userId });
 
+    if (!statut) {
+      return res.status(400).json({ message: 'Le paramètre statut est requis' });
+    }
+
+    const query = { statut, id_psychologue: userId }; // Filtrer par statut et id_psychologue
+    if (date) {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        console.log('Date invalide:', date);
+        return res.status(400).json({ message: 'Format de date invalide (attendu: YYYY-MM-DD)' });
+      }
+      query.date = parsedDate;
+      console.log('Query avec date:', query);
+    }
+
+    const disponibilites = await Disponibilities.find(query).populate('id_psychologue', 'nom');
+    console.log('Disponibilités trouvées:', disponibilites.length);
+    res.status(200).json(disponibilites);
+  } catch (err) {
+    console.error('Erreur dans getDisponibilitesByStatut:', err);
+    res.status(500).json({ message: 'Erreur lors du filtrage des disponibilités', error: err.message });
+  }
+}
 //********************* Gestion de rendezvous ******************* */
 
 // ✅ Ajouter un rendez-vous (avec vérification des disponibilités + notification)

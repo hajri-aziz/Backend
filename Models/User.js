@@ -2,27 +2,21 @@ const mongo = require('mongoose')
 //pour definir le schema de cette entiter
 const Schema = mongo.Schema
 const User = new Schema({
-    nom: String,
-    prenom: String,
-    email: String,
-    password: String,
-    role: String,
-    dateInscription: Date,
-    isAnonymous: Boolean,
-    dateNaissance: Date,
-    otpCode: String,  // Code OTP
-    otpExpires: Date, // Expiration du code
+    nom: { type: String, required: true },
+    prenom: { type: String, required: true },
+    email: { type: String, required: true, unique: true},
+    password: { type: String, required: true },
+    role: { type: String },
+    dateInscription: { type: Date, default: Date.now },
+    isAnonymous: { type: Boolean, default: false },
+    dateNaissance: { type: Date, required: true },
+    otpCode: { type: String },
+    otpExpires: { type: Date },
     isApproved: { type: Boolean, default: false },
-    telephone: Number,
-    status: {
-        type: String,
-        enum: ['autorisé', 'non autorisé'],  // Valeurs autorisées
-        default: 'autorisé'  // Par défaut, l'utilisateur est autorisé
-    },
-    profileImage: {
-        type: String, // Ce champ stockera le chemin de l'image
-        default: ''   // Par défaut, il n'y a pas d'image
-    }
-})
+    telephone: { type: String },  // Utiliser String pour les numéros
+    status: { type: String, enum: ['autorisé', 'non autorisé'], default: 'autorisé' },
+    profileImage: { type: String, default: '' } // Valeur par défaut pour les images de profil
+});
+
 
 module.exports = mongo.model('user', User) 

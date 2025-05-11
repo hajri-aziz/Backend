@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const postController = require("../Controller/ForumController");
 const upload = require('../Middll/uploads');
-const { authMiddleware, checkRole } = require('../Middll/authMiddleware');
+const { authMiddleware } = require('../Middll/authMiddleware');
 const { addPost } = require('../Controller/ForumController');
 const multer = require("multer");
 
@@ -43,7 +43,7 @@ const storage = multer.diskStorage({
     }
   });
   
-router.post("/addPost",authMiddleware,checkRole("admin"), upload.single('image'),addPost);
+router.post("/addPost",authMiddleware, upload.single('image'),addPost);
 
 /**
  * @swagger
@@ -125,5 +125,6 @@ router.delete("/deletePost/:id",authMiddleware,postController.deletePost);
  */
 router.put("/updatePost/:id", authMiddleware,postController.updatePost);
 router.get("/getPostAvecCommentaires/:id",authMiddleware, postController.getPostAvecCommentaires);
+router.post("/toggleLike/:id",authMiddleware, postController.toggleReaction);
 
 module.exports = router;
