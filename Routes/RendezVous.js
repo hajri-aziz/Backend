@@ -118,7 +118,7 @@ router.get("/rendezVous/Psychologue/:id_psychologue",authMiddleware,checkRole("a
  *       200:
  *         description: Rendez-vous mis à jour
  */
-router.put("/rendezVous/:id",authMiddleware,checkRole("admin"), rendezVousController.updateRendezVous);
+router.put("/rendezVous/:id",authMiddleware,checkRole("admin","patient"), rendezVousController.updateRendezVous);
 
 /**
  * @swagger
@@ -137,7 +137,7 @@ router.put("/rendezVous/:id",authMiddleware,checkRole("admin"), rendezVousContro
  *       200:
  *         description: Rendez-vous supprimé
  */
-router.delete("/rendezVous/:id",authMiddleware,checkRole("admin"), rendezVousController.deleteRendezVous);
+router.delete("/rendezVous/:id",authMiddleware,checkRole("admin","patient"), rendezVousController.deleteRendezVous);
 
 /**
  * @swagger
