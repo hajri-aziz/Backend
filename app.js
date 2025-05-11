@@ -115,12 +115,6 @@ const coursSessionRoutes = require('./Routes/CoursSession');
 app.use('/api/courssessions', coursSessionRoutes); 
 app.use('/api/courssessions', coursSessionRoutes);
 
- 
-
- 
-
- 
-
 // Route pour mettre à jour une catégorie de cours
 app.post('/api/coursecategories/update/:id', async (req, res) => {
   const { id } = req.params;
@@ -177,13 +171,6 @@ app.set("view engine", "twig");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
- 
- 
-
-
-
- 
- 
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");
  
