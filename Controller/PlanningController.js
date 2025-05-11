@@ -85,28 +85,27 @@ async function addDisponibilite(req, res) {
 // Backend: Modifier getDisponibilitesByStatut
 async function getDisponibilitesByStatut(req, res) {
   try {
-    const { date } = req.query; // Extraire date des query params
-    const statut = req.params.statut; // Extraire statut des params de chemin
-    const userId = req.user.id; // Récupérer l'ID du psychologue depuis le token
-    console.log('Requête reçue:', { statut, date, userId });
+    const { date } = req.query;
+    const statut = req.params.statut;
+
+    console.log('Requête reçue:', { statut, date });
 
     if (!statut) {
       return res.status(400).json({ message: 'Le paramètre statut est requis' });
     }
 
-    const query = { statut, id_psychologue: userId }; // Filtrer par statut et id_psychologue
+    const query = { statut }; // On ne filtre plus par id_psychologue
     if (date) {
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        console.log('Date invalide:', date);
         return res.status(400).json({ message: 'Format de date invalide (attendu: YYYY-MM-DD)' });
       }
       query.date = parsedDate;
-      console.log('Query avec date:', query);
     }
 
-    const disponibilites = await Disponibilities.find(query).populate('id_psychologue', 'nom');
-    console.log('Disponibilités trouvées:', disponibilites.length);
+    const disponibilites = await Disponibilities.find(query)
+      .populate('id_psychologue', 'nom'); // On récupère le nom du psy
+
     res.status(200).json(disponibilites);
   } catch (err) {
     console.error('Erreur dans getDisponibilitesByStatut:', err);
@@ -148,6 +147,7 @@ async function addRendezVous(req, res) {
     });
 
     await rendezVous.save();
+    console.log(res);
 
     // ✅ Mettre à jour la disponibilité comme "occupé"
     await Disponibilities.findByIdAndUpdate(disponibilite._id, { statut: "occupé" });
@@ -182,7 +182,6 @@ async function addRendezVous(req, res) {
     });
 
     await notification.save();
-
     // ✅ Réponse finale
     res.status(201).json({
       message: "Rendez-vous ajouté avec succès",

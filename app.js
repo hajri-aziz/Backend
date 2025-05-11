@@ -113,6 +113,7 @@ app.use('/api/cours', coursRoutes);
 app.use('/uploads', express.static('uploads')); // Assurez-vous que le dossier 'uploads' contient vos images
  
 const coursSessionRoutes = require('./Routes/CoursSession');
+app.use('/api/courssessions', coursSessionRoutes); 
 app.use('/api/courssessions', coursSessionRoutes);
 
 // Route pour mettre à jour une catégorie de cours
