@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer"); // Pour envoyer des emails
 const crypto = require("crypto"); // Pour générer un OTP sécurisé
 const otpMap = new Map(); // Une structure temporaire pour stocker les OTPs associés aux emails
+const path = require('path');
+const fs = require('fs');
 
 
 

@@ -78,7 +78,7 @@ const createCours = async (req, res) => {
       currency:      req.body.currency,
       category_id:   req.body.category_id,
       instructor_id: req.body.instructor_id,
-      image:         req.file ? req.file.path : ''
+      image: req.file ? req.file.filename : ''
     });
     const newCours = await cours.save();
     res.status(201).json(newCours);
