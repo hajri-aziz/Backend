@@ -175,13 +175,7 @@ app.set("view engine", "twig");
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
- 
- 
-
-
-
- 
+app.use('/uploads', express.static('uploads'));
  
 // Importation des contrôleurs (non utilisé dans les routes, mais importé pour cohérence)
 const planningController = require("./Controller/PlanningController");

@@ -2,8 +2,11 @@ const Post = require('../Models/Post');
 const Commentaire = require('../Models/Commentaire');
 const Message = require('../Models/Message');
 const Group = require('../Models/Group');
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
 const User = mongoose.models.user || mongoose.model('user');
+const validator = require('validator'); // Added import
 //const Post = mongoose.models.Post || mongoose.model('Post');
   //*********************CRUD POST******************* ******************************/
  
@@ -25,7 +28,7 @@ const User = mongoose.models.user || mongoose.model('user');
         contenu: req.body.contenu,
         date_creation: new Date().toISOString(),
         likes: [],
-        image: req.file ? req.file.path : null
+        image: req.file ? `/uploads/${req.file.filename}` : undefined,
       });
   
       await post.save();
@@ -217,6 +220,37 @@ const toggleReaction = async (req, res) => {
   }
 };
 
+const getUserGroups = async (req, res) => {
+  try {
+    // Récupérer l'ID utilisateur depuis le token (ajouté par le middleware auth)
+    const userId = req.user.id; // Utilisez le champ id du token
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Utilisateur non authentifié.' });
+    }
+
+    // Récupérer tous les groupes où l'utilisateur est membre, admin ou créateur
+    const groups = await Group.find({ 
+      $or: [
+        { members: userId },
+        { admins: userId },
+        { creator: userId }
+      ] 
+    })
+      .populate('creator', 'nom prenom profileImage')
+      .populate('members', 'nom prenom profileImage')
+      .populate('admins', 'nom prenom profileImage')
+      
+      .sort({ updatedAt: -1 });
+
+    res.status(200).json(groups);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des groupes.' });
+  }
+};
+
+// Méthode pour créer un groupe (mise à jour pour utiliser l'ID du token)
 const createGroup = async (req, res) => {
   try {
     const { name, creator, members, admins, lastMessage } = req.body;
@@ -241,31 +275,194 @@ const createGroup = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur lors de la création du groupe.' });
   }
 };
-const addMember = async (req, res) => {
+
+// Méthode pour ajouter un membre à un groupe
+const addMemberToGroup = async (req, res) => {
   try {
-    const { groupId, newMemberId } = req.body;
+    const { groupId } = req.params;
+    const { userId: memberToAdd } = req.body;
+    const currentUserId = req.userData.userId;
 
-    if (!groupId || !newMemberId) {
-      return res.status(400).json({ error: 'groupId et newMemberId sont requis.' });
-    }
-
+    // Vérifier si le groupe existe
     const group = await Group.findById(groupId);
     if (!group) {
       return res.status(404).json({ error: 'Groupe non trouvé.' });
     }
 
-    // Évite d'ajouter un membre déjà existant
-    if (group.members.includes(newMemberId)) {
-      return res.status(400).json({ error: 'Le membre est déjà dans le groupe.' });
+    // Vérifier si l'utilisateur actuel est admin ou créateur du groupe
+    if (group.creator.toString() !== currentUserId && !group.admins.includes(currentUserId)) {
+      return res.status(403).json({ error: 'Vous n\'avez pas les droits pour ajouter des membres à ce groupe.' });
     }
 
-    group.members.push(newMemberId);
+    // Vérifier si le membre est déjà dans le groupe
+    if (group.members.includes(memberToAdd)) {
+      return res.status(400).json({ error: 'Cet utilisateur est déjà membre du groupe.' });
+    }
+
+    // Ajouter le membre au groupe
+    group.members.push(memberToAdd);
     await group.save();
 
-    res.status(200).json({ message: `Membre ${newMemberId} ajouté au groupe ${groupId}`, group });
+    // Retourner le groupe mis à jour avec les informations des membres
+    const updatedGroup = await Group.findById(groupId)
+      .populate('creator', 'nom prenom profileImage')
+      .populate('members', 'nom prenom profileImage')
+      .populate('admins', 'nom prenom profileImage');
+
+    res.status(200).json({ message: 'Membre ajouté au groupe', group: updatedGroup });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Erreur serveur lors de l\'ajout du membre.' });
+    res.status(500).json({ error: 'Erreur serveur lors de l\'ajout du membre au groupe.' });
+  }
+};
+const getUserByEmail = async (email) => {
+  console.log('Recherche de l\'utilisateur avec email:', email);
+  try {
+    const user = await User.findOne({ email });
+    console.log('Utilisateur trouvé:', user);
+    return user;
+  } catch (error) {
+    console.error('Erreur lors de la recherche de l\'utilisateur par email:', error);
+    throw error;
+  }
+};
+
+
+const addMemberByEmail = async (req, res) => {
+  try {
+    const { groupId, email } = req.body;
+    const userId = req.user?.id; // Get user ID from req.user.id (set by authMiddleware)
+
+    // Log userId for debugging
+    console.log('🆔 User ID from JWT:', userId);
+
+    // Validate userId
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      console.log('❌ Erreur: userId invalide ou manquant:', userId);
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié ou ID invalide',
+      });
+    }
+
+    // Validate groupId
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de groupe invalide',
+      });
+    }
+
+    // Validate email
+    if (!email || !validator.isEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Adresse email invalide',
+      });
+    }
+
+    // Check if group exists
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Groupe non trouvé',
+      });
+    }
+
+    // Debug group details
+    console.log('🏷 Group ID:', groupId);
+    console.log('👤 Group Creator:', group.creator.toString());
+    console.log('👑 Group Admins:', group.admins.map((id) => id.toString()));
+    console.log('👥 Group Members:', group.members.map((id) => id.toString()));
+
+    // Check if user is a member or admin
+    const isMemberOrAdmin =
+      group.members.some((memberId) => memberId.toString() === userId) ||
+      group.admins.some((adminId) => adminId.toString() === userId);
+    if (!isMemberOrAdmin) {
+      console.log('🚫 Échec de l\'autorisation: utilisateur non membre ni admin', { userId });
+      return res.status(403).json({
+        success: false,
+        message: 'Vous n\'êtes pas autorisé à ajouter des membres à ce groupe',
+      });
+    }
+
+    // Find or create user by email
+    let user = await User.findOne({ email });
+    if (!user) {
+      const temporaryPassword = crypto.randomBytes(8).toString('hex');
+      const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+      user = new User({
+        email,
+        name: email.split('@')[0],
+        password: hashedPassword,
+        prenom: 'N/A', // Default value for required field
+        nom: 'N/A', // Default value for required field
+        dateNaissance: new Date('2000-01-01'), // Default value for required field
+      });
+      await user.save();
+      console.log(`🆕 Nouvel utilisateur créé: ${email}, Mot de passe temporaire: ${temporaryPassword}`);
+      // TODO: Send email with temporary password
+    }
+
+    // Check if user is already a member
+    const isMember = group.members.some(
+      (memberId) => memberId.toString() === user._id.toString()
+    );
+    if (isMember) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cet utilisateur est déjà membre du groupe',
+      });
+    }
+
+    // Add user to group
+    group.members.push(user._id);
+    await group.save();
+
+    // Fetch updated group
+    const updatedGroup = await Group.findById(groupId)
+      .populate('creator', 'name email')
+      .populate('members', 'name email')
+      .populate('admins', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Membre ajouté avec succès',
+      group: updatedGroup,
+    });
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'ajout du membre au groupe:', error);
+
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation des données utilisateur',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de groupe invalide',
+      });
+    }
+
+    if (error.name === 'ReferenceError') {
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur de configuration du serveur',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
   }
 };
 
@@ -287,5 +484,10 @@ const addMember = async (req, res) => {
         getUserConversations,
         toggleReaction,
         createGroup,
-        addMember 
+        getUserGroups,
+        addMemberToGroup,
+        getUserByEmail,
+        addMemberByEmail
+       
+        
     }
