@@ -328,15 +328,15 @@ const getUserByEmail = async (email) => {
 };
 
 
+// Backend/Controller/ForumController.js
+// Backend/Controller/ForumController.js
 const addMemberByEmail = async (req, res) => {
   try {
     const { groupId, email } = req.body;
-    const userId = req.user?.id; // Get user ID from req.user.id (set by authMiddleware)
+    const userId = req.user?.id;
 
-    // Log userId for debugging
     console.log('🆔 User ID from JWT:', userId);
 
-    // Validate userId
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       console.log('❌ Erreur: userId invalide ou manquant:', userId);
       return res.status(401).json({
@@ -345,7 +345,6 @@ const addMemberByEmail = async (req, res) => {
       });
     }
 
-    // Validate groupId
     if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
       return res.status(400).json({
         success: false,
@@ -353,7 +352,6 @@ const addMemberByEmail = async (req, res) => {
       });
     }
 
-    // Validate email
     if (!email || !validator.isEmail(email)) {
       return res.status(400).json({
         success: false,
@@ -361,7 +359,6 @@ const addMemberByEmail = async (req, res) => {
       });
     }
 
-    // Check if group exists
     const group = await Group.findById(groupId);
     if (!group) {
       return res.status(404).json({
@@ -370,43 +367,16 @@ const addMemberByEmail = async (req, res) => {
       });
     }
 
-    // Debug group details
-    console.log('🏷 Group ID:', groupId);
-    console.log('👤 Group Creator:', group.creator.toString());
-    console.log('👑 Group Admins:', group.admins.map((id) => id.toString()));
-    console.log('👥 Group Members:', group.members.map((id) => id.toString()));
-
-    // Check if user is a member or admin
-    const isMemberOrAdmin =
-      group.members.some((memberId) => memberId.toString() === userId) ||
-      group.admins.some((adminId) => adminId.toString() === userId);
-    if (!isMemberOrAdmin) {
-      console.log('🚫 Échec de l\'autorisation: utilisateur non membre ni admin', { userId });
-      return res.status(403).json({
-        success: false,
-        message: 'Vous n\'êtes pas autorisé à ajouter des membres à ce groupe',
-      });
-    }
-
-    // Find or create user by email
-    let user = await User.findOne({ email });
+    // Vérifier si l'utilisateur existe
+    const user = await User.findOne({ email });
     if (!user) {
-      const temporaryPassword = crypto.randomBytes(8).toString('hex');
-      const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-      user = new User({
-        email,
-        name: email.split('@')[0],
-        password: hashedPassword,
-        prenom: 'N/A', // Default value for required field
-        nom: 'N/A', // Default value for required field
-        dateNaissance: new Date('2000-01-01'), // Default value for required field
+      console.log(`❌ Email non trouvé dans la base de données: ${email}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Utilisateur non trouvé dans la base de données',
       });
-      await user.save();
-      console.log(`🆕 Nouvel utilisateur créé: ${email}, Mot de passe temporaire: ${temporaryPassword}`);
-      // TODO: Send email with temporary password
     }
 
-    // Check if user is already a member
     const isMember = group.members.some(
       (memberId) => memberId.toString() === user._id.toString()
     );
@@ -417,11 +387,9 @@ const addMemberByEmail = async (req, res) => {
       });
     }
 
-    // Add user to group
     group.members.push(user._id);
     await group.save();
 
-    // Fetch updated group
     const updatedGroup = await Group.findById(groupId)
       .populate('creator', 'name email')
       .populate('members', 'name email')
@@ -434,30 +402,6 @@ const addMemberByEmail = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Erreur lors de l\'ajout du membre au groupe:', error);
-
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreur de validation des données utilisateur',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      });
-    }
-
-    if (error.name === 'CastError') {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de groupe invalide',
-      });
-    }
-
-    if (error.name === 'ReferenceError') {
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur de configuration du serveur',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      });
-    }
-
     res.status(500).json({
       success: false,
       message: 'Erreur serveur',
@@ -465,7 +409,6 @@ const addMemberByEmail = async (req, res) => {
     });
   }
 };
-
 
 
     module.exports={
