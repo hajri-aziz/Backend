@@ -12,7 +12,8 @@ const {
   inscrireCoursSession,
   getInscriptionsBySession,
   annulerInscription,
-  getSessionsByUser
+  getSessionsByUser,
+  getSessionsByCours
 } = require('../Controller/CoursController');
 
 const validateBody = require('../Middll/validateBody');
@@ -339,5 +340,8 @@ router.get(
   checkRole('student','instructor','admin'),
   getSessionsByUser
 );
+router.get('/by-cours/:cours_id', getSessionsByCours);
+
+
 
 module.exports = router;
