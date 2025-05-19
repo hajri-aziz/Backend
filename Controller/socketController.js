@@ -52,49 +52,58 @@ module.exports = function (io) {
     }
 
     // 📩 Envoi de message One-to-One (version originale)
-  socket.on("sendMessage", async (data) => {
-      try {
-        if (typeof data === "string") data = JSON.parse(data);
-        if (!data.destinataireId || !data.contenu) {
-          console.error("Erreur : destinataireId et contenu requis !");
-          return;
-        }
-
-        const key = getKey(expediteurId, data.destinataireId);
-        if (!activeConversations.has(key)) {
-          activeConversations.set(key, {
-            conversationId: uuidv4(),
-            membres: [expediteurId, data.destinataireId],
-            messages: [],
-          });
-        }
-
-        const message = {
-          expediteurId,
-          destinataireId: data.destinataireId,
-          contenu: data.contenu,
-          dateEnvoi: new Date(),
-          reactions: Array.isArray(data.reactions) ? data.reactions : [],
-          isGroupMessage: false,
-          status: "livré",
-        };
-
-        activeConversations.get(key).messages.push(message);
-
-        const destinataireSocketId = users.get(data.destinataireId);
-        if (destinataireSocketId) {
-          io.to(destinataireSocketId).emit("newMessage", message);
-          console.log("💬 Message livré à :", data.destinataireId);
-        } else {
-          socket.emit("messageStatus", {
-            status: "non-livré",
-            message: "Destinataire non connecté, message enregistré",
-          });
-        }
-      } catch (err) {
-        console.error("❌ Erreur d'envoi de message :", err);
-      }
-    });
+ // Gestion de l'envoi de message One-to-One
+        socket.on("sendMessage", async (data) => {
+            try {
+                if (typeof data === "string") data = JSON.parse(data);
+        
+                // Vérifier que les données nécessaires sont présentes
+                if (!data.destinataireId || !data.contenu) {
+                    console.error("Erreur : destinataireId et contenu sont nécessaires !");
+                    return;
+                }
+        
+                const key = getKey(expediteurId, data.destinataireId);
+        
+                // Créer une nouvelle conversation si elle n'existe pas
+                if (!activeConversations.has(key)) {
+                    activeConversations.set(key, {
+                        conversationId: uuidv4(), // ID unique de conversation
+                        membres: [expediteurId, data.destinataireId],
+                        messages: []
+                    });
+                }
+        
+                // Création du message
+                const message = {
+                    expediteurId,
+                    destinataireId: data.destinataireId,
+                    contenu: data.contenu,
+                    dateEnvoi: new Date(),
+                    reactions: Array.isArray(data.reactions) ? data.reactions : [],
+                    isGroupMessage: false,
+                    status: 'livré'
+                };
+        
+                // Ajout du message à la conversation en mémoire
+                activeConversations.get(key).messages.push(message);
+        
+                // Envoi en temps réel au destinataire s’il est connecté
+                const destinataireSocketId = users.get(data.destinataireId);
+                if (destinataireSocketId) {
+                    io.to(destinataireSocketId).emit("newMessage", message);
+                    console.log("Message envoyé à :", data.destinataireId);
+                } else {
+                    // Sinon, notifier l'expéditeur que le message est non livré mais enregistré
+                    socket.emit("messageStatus", {
+                        status: "non-livré",
+                        message: "Destinataire non connecté, message enregistré"
+                    });
+                }
+            } catch (error) {
+                console.error("Erreur lors de l'envoi du message :", error);
+            }
+        });
 
     // Écouter l'événement join-group
     socket.on('join-group', ({ groupId }, callback) => {
