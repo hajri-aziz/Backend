@@ -118,7 +118,7 @@ router.get('/get/:id', getCoursById);
 router.post(
   '/add',
   authMiddleware,
-  checkRole('instructor','admin'),
+  checkRole('admin'),
   upload.single('image'),
   validateBody(validateCours),
   createCours
@@ -181,7 +181,7 @@ router.post(
 router.put(
   '/update/:id',
   authMiddleware,
-  checkRole('instructor','admin'),
+  checkRole('admin'),
   upload.single('image'),
   validateBody(validateCours),
   updateCours
@@ -215,7 +215,7 @@ router.put(
 router.delete(
   '/delete/:id',
   authMiddleware,
-  checkRole('instructor','admin'),
+  checkRole('admin'),
   deleteCours
 );
 

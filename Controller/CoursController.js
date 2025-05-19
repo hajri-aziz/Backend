@@ -7,15 +7,14 @@ const User            = require('../Models/User');
 
 const { sendEmail, emailTemplates, scheduleReminder } = require('../services/mailer');
 
-// --- Catégories ---
-
+// --- CATEGORIES ---
 const createCategory = async (req, res) => {
   try {
     const category = new CoursCategory({
-      title:       req.body.title,
+      title: req.body.title,
       description: req.body.description,
-      created_at:  new Date(),
-      updated_at:  new Date()
+      created_at: new Date(),
+      updated_at: new Date()
     });
     const newCategory = await category.save();
     res.status(201).json(newCategory);
@@ -47,9 +46,9 @@ const updateCategory = async (req, res) => {
   try {
     const category = await CoursCategory.findById(req.params.id);
     if (!category) return res.status(404).json({ message: 'Category not found' });
-    category.title       = req.body.title;
+    category.title = req.body.title;
     category.description = req.body.description;
-    category.updated_at  = new Date();
+    category.updated_at = new Date();
     const updated = await category.save();
     res.status(200).json(updated);
   } catch (error) {
@@ -67,16 +66,15 @@ const deleteCategory = async (req, res) => {
   }
 };
 
-// --- Cours ---
-
+// --- COURS ---
 const createCours = async (req, res) => {
   try {
     const cours = new Cours({
-      title:         req.body.title,
-      description:   req.body.description,
-      price:         req.body.price,
-      currency:      req.body.currency,
-      category_id:   req.body.category_id,
+      title: req.body.title,
+      description: req.body.description,
+      price: req.body.price,
+      currency: req.body.currency,
+      category_id: req.body.category_id,
       instructor_id: req.body.instructor_id,
       image: req.file ? req.file.filename : ''
     });
@@ -89,10 +87,9 @@ const createCours = async (req, res) => {
 
 const getAllCours = async (req, res) => {
   try {
-    const coursList = await Cours
-      .find()
+    const coursList = await Cours.find()
       .populate('category_id', 'title description')
-      .populate('instructor_id', 'nom prenom email'); // ref: 'user'
+      .populate('instructor_id', 'nom prenom email');
     res.status(200).json(coursList);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -101,8 +98,7 @@ const getAllCours = async (req, res) => {
 
 const getCoursById = async (req, res) => {
   try {
-    const cours = await Cours
-      .findById(req.params.id)
+    const cours = await Cours.findById(req.params.id)
       .populate('category_id', 'title description')
       .populate('instructor_id', 'nom prenom email');
     if (!cours) return res.status(404).json({ message: 'Cours non trouvé' });
@@ -116,13 +112,13 @@ const updateCours = async (req, res) => {
   try {
     const cours = await Cours.findById(req.params.id);
     if (!cours) return res.status(404).json({ message: 'Cours non trouvé' });
-    cours.title         = req.body.title;
-    cours.description   = req.body.description;
-    cours.price         = req.body.price;
-    cours.currency      = req.body.currency || cours.currency;
-    cours.category_id   = req.body.category_id;
+    cours.title = req.body.title;
+    cours.description = req.body.description;
+    cours.price = req.body.price;
+    cours.currency = req.body.currency || cours.currency;
+    cours.category_id = req.body.category_id;
     cours.instructor_id = req.body.instructor_id;
-    cours.updated_at    = new Date();
+    cours.updated_at = new Date();
     if (req.file) cours.image = req.file.path;
     const updated = await cours.save();
     res.status(200).json(updated);
@@ -224,9 +220,13 @@ const updateCoursSession = async (req, res) => {
       title,
       cours_id,
       video_url,
-      duration: { amount: duration.amount, unit: duration.unit },
-      startdate,
-      enddate,
+      duration: {
+      amount: req.body.duration.amount,
+      unit: req.body.duration.unit
+},
+startdate: new Date(req.body.startdate),
+enddate: new Date(req.body.enddate),
+
       location,
       capacity,
       status,
@@ -367,6 +367,17 @@ const getSessionsByUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+  const getSessionsByCours = async (req, res) => {
+  try {
+    const coursId = req.params.cours_id;
+    const sessions = await CoursSession
+      .find({ cours_id: coursId })
+      .populate('participants.user_id', 'nom prenom email');
+    res.status(200).json(sessions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // --- Filtres & Recherche ---
 
@@ -456,6 +467,8 @@ const sendSessionReminders = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+
+
 };
 
 module.exports = {
@@ -481,6 +494,8 @@ module.exports = {
   getInscriptionsBySession,
   annulerInscription,
   getSessionsByUser,
+  getSessionsByCours,
+
 
   getCoursByCategory,
   getCoursByPrice,
