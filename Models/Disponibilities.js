@@ -7,7 +7,7 @@ const Disponibilities=new Schema({
     date: { type: Date, required: true },
     heure_debut: { type: String, required: true },
     heure_fin: { type: String, required: true },
-    statut: { type: String, enum: ['disponible', 'occupé'], required: true }
+    statut: { type: String, enum: ['disponible', 'occupé','absent'], required: true }
 })
 
 module.exports=mongo.model('disponibilties',Disponibilities)
