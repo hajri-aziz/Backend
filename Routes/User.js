@@ -17,7 +17,7 @@ const upload = require('../Config/uploadConfig');
  *       200:
  *         description: Liste des utilisateurs
  */
-router.get('/showusers', authMiddleware, checkRole("admin"), UserController.showusers);
+router.get('/showusers', authMiddleware, UserController.showusers);
 
 /**
  * @swagger
@@ -225,7 +225,7 @@ router.post("/verify-otp", UserController.verifyOTP);
  *       200:
  *         description: Utilisateur autorisé
  */
-router.put("/authorizeUser/:id", authMiddleware,checkRole("admin"), UserController.authorizeUser);
+router.put("/authorizeUser/:id", authMiddleware, UserController.authorizeUser);
 
 /**
  * @swagger
