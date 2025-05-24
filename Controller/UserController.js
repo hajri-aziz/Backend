@@ -308,7 +308,7 @@ async function updateuser(req, res) {
         const updates = {};
 
         // Liste des champs autorisés à être mis à jour
-        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage'];
+        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage','isApproved',''];
         
         // Copier seulement les champs autorisés et non vides
         allowedFields.forEach(field => {
