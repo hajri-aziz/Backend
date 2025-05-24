@@ -6,15 +6,16 @@ const { v4: uuidv4 } = require("uuid");
 module.exports = function (io) {
   const users = new Map();
   const activeConversations = new Map();
+  // Ajouter un ensemble pour suivre les messages récemment envoyés
+  const recentMessages = new Set();
 
   const getKey = (id1, id2) => [id1, id2].sort().join("_");
 
   io.on("connection", async (socket) => {
     console.log("🟢 Connexion détectée :", socket.id);
 
-    // 🔐 Récupérer le token depuis les headers ou les params (auth)
+    // 🔐 Récupérer le token
     const token = socket.handshake.query.token;
-
     if (!token) {
       console.error("❌ Aucun token fourni.");
       return socket.disconnect(true);
@@ -29,152 +30,155 @@ module.exports = function (io) {
       return socket.disconnect(true);
     }
 
-    const expediteurId = decoded.id; // ou autre champ selon le contenu réel
+    const expediteurId = decoded.id;
     if (!expediteurId) {
       console.error("❌ id introuvable dans le token !");
       return socket.disconnect(true);
     }
 
-    // 🔁 Stocker l'utilisateur connecté
+    // 🔁 Déconnecter les sockets existants pour cet utilisateur
+    if (users.has(expediteurId)) {
+      const oldSocketId = users.get(expediteurId);
+      io.sockets.sockets.get(oldSocketId)?.disconnect(true);
+      console.log(`🔌 Socket précédent déconnecté pour ${expediteurId}`);
+    }
     users.set(expediteurId, socket.id);
-    socket.join(expediteurId); // Optionnel : pour les rooms privées
+    socket.join(expediteurId);
     console.log("✅ Utilisateur authentifié :", expediteurId);
 
-    // Rejoindre les rooms des groupes de l'utilisateur
+    // Rejoindre les rooms des groupes
     try {
       const groups = await Group.find({ members: expediteurId });
       groups.forEach((group) => {
         socket.join(group._id.toString());
-        console.log(`👥 Utilisateur ${expediteurId} a rejoint la room du groupe ${group._id}`);
+        console.log(`👥 Utilisateur ${expediteurId} a rejoint la room ${group._id}`);
       });
     } catch (err) {
-      console.error('❌ Erreur lors de la connexion de l\'utilisateur :', err.message);
+      console.error("❌ Erreur lors de la connexion de l'utilisateur :", err.message);
     }
 
-    // 📩 Envoi de message One-to-One (version originale)
- // Gestion de l'envoi de message One-to-One
-        socket.on("sendMessage", async (data) => {
-            try {
-                if (typeof data === "string") data = JSON.parse(data);
+    // 📩 Envoi de message One-to-One
+    socket.on("sendMessage", async (data) => {
+      try {
+        if (typeof data === "string") data = JSON.parse(data);
+
+        if (!data.destinataireId || !data.contenu) {
+          console.error("Erreur : destinataireId et contenu sont nécessaires !");
+          return;
+        }
+
+        // Créer un identifiant unique pour ce message
+        const messageId = `${expediteurId}_${data.destinataireId}_${data.contenu}_${Date.now()}`;
         
-                // Vérifier que les données nécessaires sont présentes
-                if (!data.destinataireId || !data.contenu) {
-                    console.error("Erreur : destinataireId et contenu sont nécessaires !");
-                    return;
-                }
+        // Vérifier si ce message a déjà été traité récemment
+        if (recentMessages.has(messageId)) {
+          console.log("Message déjà traité récemment, ignoré");
+          return;
+        }
         
-                const key = getKey(expediteurId, data.destinataireId);
+        // Ajouter le message à l'ensemble des messages récents
+        recentMessages.add(messageId);
         
-                // Créer une nouvelle conversation si elle n'existe pas
-                if (!activeConversations.has(key)) {
-                    activeConversations.set(key, {
-                        conversationId: uuidv4(), // ID unique de conversation
-                        membres: [expediteurId, data.destinataireId],
-                        messages: []
-                    });
-                }
-        
-                // Création du message
-                const message = {
-                    expediteurId,
-                    destinataireId: data.destinataireId,
-                    contenu: data.contenu,
-                    dateEnvoi: new Date(),
-                    reactions: Array.isArray(data.reactions) ? data.reactions : [],
-                    isGroupMessage: false,
-                    status: 'livré'
-                };
-        
-                // Ajout du message à la conversation en mémoire
-                activeConversations.get(key).messages.push(message);
-        
-                // Envoi en temps réel au destinataire s’il est connecté
-                const destinataireSocketId = users.get(data.destinataireId);
-                if (destinataireSocketId) {
-                    io.to(destinataireSocketId).emit("newMessage", message);
-                    console.log("Message envoyé à :", data.destinataireId);
-                } else {
-                    // Sinon, notifier l'expéditeur que le message est non livré mais enregistré
-                    socket.emit("messageStatus", {
-                        status: "non-livré",
-                        message: "Destinataire non connecté, message enregistré"
-                    });
-                }
-            } catch (error) {
-                console.error("Erreur lors de l'envoi du message :", error);
-            }
+        // Nettoyer l'ensemble des messages récents après 5 secondes
+        setTimeout(() => {
+          recentMessages.delete(messageId);
+        }, 5000);
+
+        const key = getKey(expediteurId, data.destinataireId);
+
+        // Assurez-vous que la conversation existe, sinon créez-la
+        if (!activeConversations.has(key)) {
+          activeConversations.set(key, {
+            conversationId: uuidv4(),
+            membres: [expediteurId, data.destinataireId],
+            messages: [],
+          });
+        }
+
+        // Récupérez la conversation après l'avoir créée si nécessaire
+        const conversation = activeConversations.get(key);
+
+        // Création du message
+        const message = new Message({
+          expediteurId,
+          destinataireId: data.destinataireId,
+          contenu: data.contenu,
+          dateEnvoi: new Date(),
+          conversationId: key,
         });
 
-    // Écouter l'événement join-group
-    socket.on('join-group', ({ groupId }, callback) => {
-      socket.join(groupId.toString());
-      console.log(`👥 Rejoint la room du groupe ${groupId}`);
-      if (callback) {
-        callback({ status: 'success', groupId }); // Confirmation
+        await message.save();
+
+        // Ajoutez le message à la conversation
+        conversation.messages.push(message);
+
+        // Envoyer au destinataire s'il est connecté
+        const destinataireSocketId = users.get(data.destinataireId);
+        if (destinataireSocketId) {
+          // Utiliser socket.to pour envoyer uniquement au destinataire
+          socket.to(data.destinataireId).emit("newMessage", message);
+          console.log(`Message envoyé au destinataire: ${data.destinataireId}`);
+        } else {
+          socket.emit("messageStatus", {
+            status: "non-livré",
+            message: "Destinataire non connecté, message enregistré",
+          });
+          console.log(`Destinataire ${data.destinataireId} non connecté, message enregistré`);
+        }
+        
+        // Envoyer une confirmation à l'expéditeur via son socket uniquement
+        socket.emit("newMessage", message);
+        console.log(`Message confirmation envoyée à l'expéditeur: ${expediteurId}`);
+      } catch (error) {
+        console.error("Erreur lors de l'envoi du message :", error);
+        socket.emit("messageStatus", { 
+          status: "erreur", 
+          message: "Erreur lors de l'envoi du message" 
+        });
       }
     });
 
+    // Écouter l'événement join-group
+    socket.on("join-group", ({ groupId }, callback) => {
+      socket.join(groupId.toString());
+      console.log(`👥 Rejoint la room du groupe ${groupId}`);
+      if (callback) {
+        callback({ status: "success", groupId });
+      }
+    });
+
+    // 📩 Envoi de message de groupe
     socket.on("send-group-message", async (data) => {
-      console.log("📩 Reçu événement send-group-message");
-      console.log("📦 Données reçues :", data);
-      console.log("🔍 Type de données :", typeof data);
-      console.log("🔍 Contenu brut :", JSON.stringify(data, null, 2));
-
-      let parsedData = data;
-      if (!data) {
-        console.error("❌ Données manquantes");
-        return;
-      }
-
-      if (typeof data === "string") {
-        try {
-          parsedData = JSON.parse(data);
-          console.log("✅ Données parsées depuis une chaîne JSON :", parsedData);
-        } catch (err) {
-          console.error("❌ JSON invalide :", err.message);
+      try {
+        let parsedData = typeof data === "string" ? JSON.parse(data) : data;
+        if (!parsedData || !parsedData.contenu || (!parsedData.groupId && !parsedData.destinataireIds)) {
+          console.error("❌ Données invalides ou manquantes");
           return;
         }
-      }
 
-      if (typeof parsedData !== "object" || parsedData === null) {
-        console.error("❌ Format de données invalide");
-        return;
-      }
-
-      let { groupId, destinataireIds, contenu } = parsedData;
-
-      const token = socket.handshake.query.token;
-      let decoded;
-      try {
-        if (!token) {
-          console.error("❌ Aucun token");
+        let { groupId, destinataireIds, contenu } = parsedData;
+        
+        // Créer un identifiant unique pour ce message de groupe
+        const messageGroupId = `${expediteurId}_group_${contenu}_${Date.now()}`;
+        
+        // Vérifier si ce message a déjà été traité récemment
+        if (recentMessages.has(messageGroupId)) {
+          console.log("Message de groupe déjà traité récemment, ignoré");
           return;
         }
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (err) {
-        console.error("❌ Erreur token :", err.message);
-        return;
-      }
+        
+        // Ajouter le message à l'ensemble des messages récents
+        recentMessages.add(messageGroupId);
+        
+        // Nettoyer l'ensemble des messages récents après 5 secondes
+        setTimeout(() => {
+          recentMessages.delete(messageGroupId);
+        }, 5000);
 
-      const expediteurId = decoded.id;
-      console.log("👤 ID expéditeur :", expediteurId);
-
-      if (!contenu) {
-        console.error("❌ Contenu manquant");
-        return;
-      }
-
-      if (!groupId && (!destinataireIds || !Array.isArray(destinataireIds) || destinataireIds.length === 0)) {
-        console.error("❌ groupId ou destinataireIds requis");
-        return;
-      }
-
-      try {
         let group;
         let messageDestinataireIds = destinataireIds || [];
 
         if (!groupId) {
-          // Création d’un groupe temporaire
           if (!messageDestinataireIds.includes(expediteurId)) {
             messageDestinataireIds.push(expediteurId);
           }
@@ -183,74 +187,38 @@ module.exports = function (io) {
             name: "Groupe temporaire",
             creator: expediteurId,
             members: membres,
-            admins: [expediteurId]
+            admins: [expediteurId],
           });
 
           await group.save();
           groupId = group._id;
           console.log("✅ Groupe créé automatiquement :", groupId);
 
-          // Inviter les membres à rejoindre la room via join-group
           membres.forEach((memberId) => {
             const memberSocketId = users.get(memberId.toString());
             if (memberSocketId) {
-              io.to(memberSocketId).emit("join-group", { groupId: group._id }, (ack) => {
-                if (ack && ack.status === 'success') {
-                  console.log(`✅ Utilisateur ${memberId} a rejoint la room ${groupId}`);
-                } else {
-                  console.log(`❌ Utilisateur ${memberId} n'a pas confirmé l'adhésion à la room ${groupId}`);
-                }
-              });
-              console.log(`📩 Invité ${memberId} à rejoindre la room ${groupId}`);
-            } else {
-              console.log(`⚠️ Utilisateur ${memberId} non connecté`);
+              io.to(memberSocketId).emit("join-group", { groupId: group._id });
             }
           });
 
-          // L'émetteur rejoint la room
           socket.join(groupId.toString());
-          console.log(`👥 Émetteur ${expediteurId} a rejoint la room ${groupId}`);
-
-          // Notifier les membres de la création du groupe
           io.to(groupId.toString()).emit("group-created", {
             groupId: group._id,
             name: group.name,
             members: group.members,
-            creator: group.creator
+            creator: group.creator,
           });
         } else {
-          // Groupe existant
           group = await Group.findById(groupId);
           if (!group) {
             console.error("🚫 Groupe introuvable :", groupId);
             return;
           }
-
           if (!group.members.includes(expediteurId)) {
-            console.error("🚫 L’expéditeur n’est pas membre du groupe !");
+            console.error("🚫 L'expéditeur n'est pas membre du groupe !");
             return;
           }
-
-          if (!destinataireIds || destinataireIds.length === 0) {
-            messageDestinataireIds = group.members;
-          }
-
-          // Inviter tous les membres à rejoindre la room via join-group
-          group.members.forEach((memberId) => {
-            const memberSocketId = users.get(memberId.toString());
-            if (memberSocketId) {
-              io.to(memberSocketId).emit("join-group", { groupId }, (ack) => {
-                if (ack && ack.status === 'success') {
-                  console.log(`✅ Utilisateur ${memberId} a rejoint la room ${groupId}`);
-                } else {
-                  console.log(`❌ Utilisateur ${memberId} n'a pas confirmé l'adhésion à la room ${groupId}`);
-                }
-              });
-              console.log(`📩 Invité ${memberId} à rejoindre la room ${groupId}`);
-            } else {
-              console.log(`⚠️ Utilisateur ${memberId} non connecté`);
-            }
-          });
+          messageDestinataireIds = group.members;
         }
 
         // Création du message
@@ -259,26 +227,33 @@ module.exports = function (io) {
           contenu,
           isGroupMessage: true,
           groupId,
-          destinataireIds: messageDestinataireIds
+          destinataireIds: messageDestinataireIds,
+          dateEnvoi: new Date(),
         });
 
         await newMessage.save();
         console.log("✅ Message enregistré :", newMessage._id);
 
-       
-
-        // Diffuser à tous les membres de la room
-        io.to(groupId.toString()).emit("new-group-message", {
+        // Diffuser à tous les membres de la room (SAUF l'expéditeur)
+        socket.to(groupId.toString()).emit("new-group-message", {
           _id: newMessage._id,
           expediteurId,
           contenu,
           groupId,
           destinataireIds: messageDestinataireIds,
-          dateEnvoi: newMessage.dateEnvoi
+          dateEnvoi: newMessage.dateEnvoi,
+        });
+        
+        // Envoyer séparément à l'expéditeur
+        socket.emit("new-group-message", {
+          _id: newMessage._id,
+          expediteurId,
+          contenu,
+          groupId,
+          destinataireIds: messageDestinataireIds,
+          dateEnvoi: newMessage.dateEnvoi,
         });
 
-        // Log pour vérifier les clients dans la room
-        console.log('🔍 Clients dans la room', groupId, ':', io.sockets.adapter.rooms.get(groupId.toString()));
         console.log("✅ Message de groupe envoyé à :", messageDestinataireIds);
       } catch (err) {
         console.error("❌ Erreur lors de l'envoi du message :", err.message);
@@ -288,7 +263,6 @@ module.exports = function (io) {
     // 📴 Déconnexion
     socket.on("disconnect", async () => {
       console.log("🔴 Déconnexion :", socket.id);
-
       users.delete(expediteurId);
 
       for (const [key, convo] of activeConversations.entries()) {
@@ -299,27 +273,6 @@ module.exports = function (io) {
         const isU2Online = users.has(u2);
 
         if (!isU1Online && !isU2Online) {
-          const cleanedMessages = convo.messages.map((msg) => ({
-            expediteurId: msg.expediteurId,
-            destinataireId: msg.destinataireId,
-            contenu: msg.contenu,
-            dateEnvoi: msg.dateEnvoi,
-          }));
-
-          try {
-            await Message.create({
-              expediteurId: cleanedMessages[0].expediteurId,
-              destinataireId: cleanedMessages[0].destinataireId,
-              contenu: JSON.stringify(cleanedMessages),
-              conversationId: convo.conversationId,
-              status: "livré",
-              dateEnvoi: new Date(),
-            });
-            console.log(`💾 Conversation ${key} sauvegardée.`);
-          } catch (err) {
-            console.error("❌ Erreur sauvegarde :", err);
-          }
-
           activeConversations.delete(key);
         }
       }

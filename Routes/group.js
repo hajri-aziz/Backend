@@ -6,12 +6,17 @@ const { authMiddleware ,checkRole} = require('../Middll/authMiddleware');  // V�
 const socketController = require('../Controller/ForumController');  // Assure-toi que ton contrôleur est correctement importé
 const User = require('../Models/User');  // Assure-toi que ton modèle User est correctement importé
 
+const Message = require('../Models/Message');
+
+
+
 // Assure-toi que ton contrôleur est correctement importé
 
 // Routes pour les messages
 router.get('/conversations/:userId', authMiddleware, socketController.getUserConversations);
 router.get('/messages', authMiddleware, socketController.getConversationMessages);
 router.post('/messages/:messageId/reaction', authMiddleware, socketController.toggleReaction);
+
 
 // Routes pour les groupes
 router.post('/create', authMiddleware,socketController.createGroup);     // Cette route crée un groupe  // Cette route ajoute un membre à un groupe
@@ -30,4 +35,10 @@ router.get('/email/:email', authMiddleware, async (req, res) => {
   }
 });
 router.post('/add-member', authMiddleware,socketController.addMemberByEmail); // Cette route ajoute un membre à un groupe par email
+
+
+// Route pour récupérer les messages entre deux utilisateurs
+router.get('/message/with/:otherUserId', authMiddleware, socketController.getMessagesBetweenUsers);
+
+
 module.exports = router;

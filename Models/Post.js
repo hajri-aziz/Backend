@@ -6,7 +6,15 @@ const PostSchema = new mongoose.Schema({
   contenu: { type: String, required: true },
   date_creation: { type: Date, default: Date.now },
   image: String,
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }]
+  likes: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
+    type: { 
+      type: String, 
+      enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry'],
+      default: 'like'
+    },
+    date: { type: Date, default: Date.now }
+  }],
 });
 
 module.exports = mongoose.model("Post", PostSchema);

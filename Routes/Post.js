@@ -3,8 +3,9 @@ const router = express.Router();
 const postController = require("../Controller/ForumController");
 const upload = require('../Middll/uploads');
 const { authMiddleware } = require('../Middll/authMiddleware');
-const { addPost } = require('../Controller/ForumController');
+const { addPost , reactToPost , getReactions } = require('../Controller/ForumController');
 const multer = require("multer");
+
 
 
   
@@ -127,4 +128,11 @@ router.put("/updatePost/:id", authMiddleware,postController.updatePost);
 router.get("/getPostAvecCommentaires/:id",authMiddleware, postController.getPostAvecCommentaires);
 router.post("/toggleLike/:id",authMiddleware, postController.toggleReaction);
 
+//REACTIONS
+// Ajouter/modifier une réaction
+router.post('/posts/:postId/react', authMiddleware, reactToPost);
+
+// Obtenir les statistiques de réactions
+
+router.get('/posts/:postId/reactions', authMiddleware, getReactions);
 module.exports = router;
