@@ -24,16 +24,18 @@ async function addDisponibilite(req, res) {
     }
   }
   
-  // ✅ Récupérer toutes les disponibilités
-  async function getAllDisponibilites(req, res) {
-    try {
-      const disponibilites = await Disponibilities.find();
-      res.status(200).json(disponibilites);
-    } catch (err) {
-      console.log(err);
-      res.status(500).json({ message: "Erreur lors de la récupération des disponibilités" });
-    }
+// ✅ Récupérer toutes les disponibilités avec le nom du psychologue
+async function getAllDisponibilites(req, res) {
+  try {
+    const disponibilites = await Disponibilities.find()
+      .populate('id_psychologue', 'nom prenom'); // On récupère le champ "nom" du psychologue
+
+    res.status(200).json(disponibilites);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Erreur lors de la récupération des disponibilités" });
   }
+}
   
   // ✅ Récupérer une disponibilité par ID
   async function getDisponibiliteById(req, res) {
