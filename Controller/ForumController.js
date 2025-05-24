@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
 const User = mongoose.models.user || mongoose.model('user');
 const validator = require('validator'); // Added import
+const { ObjectId } = mongoose.Types;
 //const Post = mongoose.models.Post || mongoose.model('Post');
   //*********************CRUD POST******************* ******************************/
  
@@ -359,6 +360,7 @@ const addMemberByEmail = async (req, res) => {
       });
     }
 
+    
     const group = await Group.findById(groupId);
     if (!group) {
       return res.status(404).json({
@@ -410,6 +412,110 @@ const addMemberByEmail = async (req, res) => {
   }
 };
 
+const getMessagesBetweenUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const otherUserId = req.params.otherUserId;
+
+    if (!otherUserId) {
+      return res.status(400).json({ message: 'L\'ID de l\'autre utilisateur est requis.' });
+    }
+
+    // Création de l'ID de conversation
+    const sortedIds = [currentUserId, otherUserId].sort();
+    const conversationId = `${sortedIds[0]}_${sortedIds[1]}`;
+
+    // Récupération des messages
+    const messages = await Message.find({
+      conversationId,
+      isGroupMessage: false
+    })
+    .sort({ dateEnvoi: 1 }) // 1 = ascendant (plus ancien en premier)
+    .populate('expediteurId', 'nom prenom profileImage')
+    .lean(); // Convertit en objet JS simple
+
+    // Formattage de la réponse
+    const response = messages.map(msg => ({
+      _id: msg._id,
+      sender: msg.expediteurId._id,
+      content: msg.contenu,
+      timestamp: msg.dateEnvoi,
+      expediteur: {
+        _id: msg.expediteurId._id,
+        prenom: msg.expediteurId.prenom,
+        profileImage: msg.expediteurId.profileImage
+      }
+    }));
+
+    console.log('Messages à envoyer au frontend:', response); // Ajoutez ce log
+    return res.status(200).json(response);
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des messages:', error);
+    return res.status(500).json({ 
+      message: 'Erreur serveur', 
+      error: error.message 
+    });
+  }
+};
+
+
+//********************Reactions ***********************
+
+
+// Ajouter/Modifier une réaction
+const reactToPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id; // Récupéré du token
+    const { type } = req.body;
+
+    const validTypes = ['like', 'love', 'haha', 'wow', 'sad', 'angry'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ message: 'Type de réaction invalide.' });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post non trouvé.' });
+    }
+
+    const existingReactionIndex = post.likes.findIndex(reaction =>
+      reaction.userId.toString() === userId
+    );
+
+    if (existingReactionIndex !== -1) {
+      post.likes[existingReactionIndex].type = type;
+      post.likes[existingReactionIndex].date = new Date();
+    } else {
+      post.likes.push({ userId, type });
+    }
+
+    await post.save();
+    return res.status(200).json({ message: 'Réaction enregistrée.', post });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur serveur.' });
+  }
+};
+
+
+// Compter les réactions par type
+const getReactions = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await Post.findById(postId).select('likes'); // ne récupère que les réactions
+    if (!post) {
+      return res.status(404).json({ message: 'Post non trouvé.' });
+    }
+
+    res.status(200).json({ reactions: post.likes });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur serveur.' });
+  }
+};
 
     module.exports={
         addPost,
@@ -430,7 +536,8 @@ const addMemberByEmail = async (req, res) => {
         getUserGroups,
         addMemberToGroup,
         getUserByEmail,
-        addMemberByEmail
-       
-        
+        addMemberByEmail,
+        getMessagesBetweenUsers,
+        reactToPost,
+        getReactions
     }
