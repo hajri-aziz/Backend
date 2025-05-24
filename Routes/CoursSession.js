@@ -13,7 +13,8 @@ const {
   getInscriptionsBySession,
   annulerInscription,
   getSessionsByUser,
-  getSessionsByCours
+  getSessionsByCours,
+  bookTimeSlot
 } = require('../Controller/CoursController');
 
 const validateBody = require('../Middll/validateBody');
@@ -129,7 +130,7 @@ router.post(
   '/add',
   authMiddleware,
   checkRole('instructor','admin'),
-  validateBody(validateCoursSession),
+  validateBody(validateCoursSession), // ✅ Bonne validation
   createCoursSession
 );
 
@@ -210,7 +211,7 @@ router.delete(
  * @swagger
  * /api/courssessions/{session_id}/inscriptions:
  *   post:
- *     summary: Inscrire un utilisateur à une session (student, instructor, admin)
+ *     summary: Inscrire un utilisateur à une session (etudiant, student, instructor, admin)
  *     tags: [CourseSessions]
  *     security:
  *       - bearerAuth: []
@@ -242,7 +243,7 @@ router.delete(
 router.post(
   '/:session_id/inscriptions',
   authMiddleware,
-  checkRole('student','instructor','admin'),
+  checkRole('etudiant','student','instructor','admin'),
   validateBody(validateSessionInscription),
   inscrireCoursSession
 );
@@ -283,7 +284,7 @@ router.get(
  * @swagger
  * /api/courssessions/{session_id}/inscriptions/{user_id}:
  *   delete:
- *     summary: Annuler l'inscription d'un utilisateur (student, instructor, admin)
+ *     summary: Annuler l'inscription d'un utilisateur (etudiant, student, instructor, admin)
  *     tags: [CourseSessions]
  *     security:
  *       - bearerAuth: []
@@ -307,15 +308,69 @@ router.get(
 router.delete(
   '/:session_id/inscriptions/:user_id',
   authMiddleware,
-  checkRole('student','instructor','admin'),
+  checkRole('etudiant','student','instructor','admin'),
   annulerInscription
 );
 
 /**
  * @swagger
+ * /api/courssessions/{session_id}/book:
+ *   post:
+ *     summary: Réserver un créneau horaire pour une session (etudiant, student, instructor, admin)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: session_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la session
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *               - date
+ *               - time
+ *               - motif
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               time:
+ *                 type: string
+ *               motif:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Créneau réservé avec succès
+ *       400:
+ *         description: Créneau déjà réservé
+ *       404:
+ *         description: Session non trouvée
+ *       500:
+ *         description: Erreur serveur
+ */
+router.post(
+  '/:session_id/book',
+  authMiddleware,
+  checkRole('etudiant','student', 'instructor', 'admin'),
+  bookTimeSlot
+);
+
+
+/**
+ * @swagger
  * /api/courssessions/users/{user_id}/sessions:
  *   get:
- *     summary: Lister les sessions d’un utilisateur (student, instructor, admin)
+ *     summary: Lister les sessions d’un utilisateur (etudiant, student, instructor, admin)
  *     tags: [CourseSessions]
  *     security:
  *       - bearerAuth: []
@@ -337,10 +392,49 @@ router.delete(
 router.get(
   '/users/:user_id/sessions',
   authMiddleware,
-  checkRole('student','instructor','admin'),
+  checkRole('etudiant','student','instructor','admin'),
   getSessionsByUser
 );
 router.get('/by-cours/:cours_id', getSessionsByCours);
+/**
+ * @swagger
+ * /api/courssessions/{session_id}/bookings:
+ *   get:
+ *     summary: Récupérer tous les créneaux réservés pour une session (admin, instructor)
+ *     tags: [CourseSessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: session_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la session
+ *     responses:
+ *       200:
+ *         description: Liste des réservations
+ *       401:
+ *         description: Token manquant ou invalide
+ *       403:
+ *         description: Accès refusé, rôle insuffisant
+ *       404:
+ *         description: Session non trouvée
+ */
+router.get(
+  '/:session_id/bookings',
+  authMiddleware,
+  checkRole('instructor', 'admin'),
+  async (req, res) => {
+    try {
+      const session = await CoursSession.findById(req.params.session_id);
+      if (!session) return res.status(404).json({ message: 'Session non trouvée' });
+      res.status(200).json(session.bookings || []);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+);
 
 
 
