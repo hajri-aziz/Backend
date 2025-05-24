@@ -140,6 +140,7 @@ const deleteCours = async (req, res) => {
 // --- Sessions de cours ---
 
 const createCoursSession = async (req, res) => {
+  console.log('📦 Payload reçu côté serveur :', req.body);
   try {
     const {
       title, cours_id, video_url, duration,
@@ -275,7 +276,9 @@ const deleteCoursSession = async (req, res) => {
 
 const inscrireCoursSession = async (req, res) => {
   try {
-    const { session_id, user_id } = req.body;
+    const { user_id } = req.body;
+    const { session_id } = req.params;
+
     const session = await CoursSession.findById(session_id);
     if (!session) return res.status(404).json({ message: 'Session non trouvée' });
 
@@ -351,6 +354,31 @@ const annulerInscription = async (req, res) => {
     session.participants.splice(idx, 1);
     await session.save();
     res.status(200).json({ message: 'Inscription annulée' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+const bookTimeSlot = async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const { user_id, date, time, motif } = req.body;
+
+    const session = await CoursSession.findById(session_id);
+    if (!session) return res.status(404).json({ message: 'Session non trouvée' });
+
+    const alreadyBooked = session.bookings.some(
+      b =>
+        b.user_id.toString() === user_id &&
+        new Date(b.date).toISOString() === new Date(date).toISOString() &&
+        b.time === time
+    );
+    if (alreadyBooked)
+      return res.status(400).json({ message: 'Vous avez déjà réservé ce créneau' });
+
+    session.bookings.push({ user_id, date, time, motif });
+    await session.save();
+
+    res.status(201).json({ message: 'Créneau réservé avec succès', session });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -493,6 +521,7 @@ module.exports = {
   inscrireCoursSession,
   getInscriptionsBySession,
   annulerInscription,
+  bookTimeSlot,
   getSessionsByUser,
   getSessionsByCours,
 
