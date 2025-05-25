@@ -276,6 +276,7 @@ const deleteCoursSession = async (req, res) => {
 
 const inscrireCoursSession = async (req, res) => {
   try {
+    console.log("🔍 Body reçu :", req.body);
     const { user_id } = req.body;
     const { session_id } = req.params;
 
@@ -411,9 +412,10 @@ const getSessionsByUser = async (req, res) => {
 
 const getCoursByCategory = async (req, res) => {
   try {
-    const category = await CoursCategory.findById(req.params.categoryId);
-    if (!category) return res.status(404).json({ message: 'Category not found' });
-    const coursList = await Cours.find({ category_id: req.params.categoryId });
+    const category = await CoursCategory.findById(req.params.id); // <- ici
+    if (!category) return res.status(404).json({ message: 'Catégorie non trouvée' });
+
+    const coursList = await Cours.find({ category_id: req.params.id }); // <- ici
     res.status(200).json(coursList);
   } catch (error) {
     res.status(500).json({ message: error.message });
