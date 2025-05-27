@@ -191,6 +191,55 @@ async function updateComment(req, res) {
 //***********************************CRUD Group******************* ************************************/
 
      
+const getGroupMessagesBetweenUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const groupId = req.params.groupId;
+
+    if (!groupId) {
+      return res.status(400).json({ message: 'L\'ID du groupe est requis.' });
+    }
+
+    // Vérification que l'utilisateur est membre du groupe (optionnel, selon votre logique)
+    const group = await Group.findById(groupId);
+    if (!group || !group.members.includes(currentUserId)) {
+      return res.status(403).json({ message: 'Accès non autorisé au groupe.' });
+    }
+
+    // Récupération des messages du groupe
+    const messages = await Message.find({
+      groupId,
+      isGroupMessage: true
+    })
+    .sort({ dateEnvoi: 1 }) // 1 = ascendant (plus ancien en premier)
+    .populate('expediteurId', 'nom prenom profileImage')
+    .lean(); // Convertit en objet JS simple
+
+    // Formattage de la réponse
+    const response = messages.map(msg => ({
+      _id: msg._id,
+      sender: msg.expediteurId._id,
+      content: msg.contenu,
+      timestamp: msg.dateEnvoi,
+      expediteur: {
+        _id: msg.expediteurId._id,
+        prenom: msg.expediteurId.prenom,
+        profileImage: msg.expediteurId.profileImage
+      },
+      groupId: msg.groupId // Inclure l'ID du groupe pour référence
+    }));
+
+    console.log('Messages de groupe à envoyer au frontend:', response); // Ajoutez ce log
+    return res.status(200).json(response);
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des messages de groupe:', error);
+    return res.status(500).json({ 
+      message: 'Erreur serveur', 
+      error: error.message 
+    });
+  }
+};
 const getConversationMessages = async (req, res) => {
   try {
     const { conversationId } = req.query;
@@ -539,5 +588,6 @@ const getReactions = async (req, res) => {
         addMemberByEmail,
         getMessagesBetweenUsers,
         reactToPost,
-        getReactions
+        getReactions,
+        getGroupMessagesBetweenUsers
     }
