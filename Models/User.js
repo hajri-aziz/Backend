@@ -6,7 +6,7 @@ const User = new Schema({
     prenom: { type: String, required: true },
     email: { type: String, required: true, unique: true},
     password: { type: String, required: true },
-    role: { type: String },
+    role: { type: String , default:'etudiant'},
     dateInscription: { type: Date, default: Date.now },
     isAnonymous: { type: Boolean, default: false },
     dateNaissance: { type: Date, required: true },

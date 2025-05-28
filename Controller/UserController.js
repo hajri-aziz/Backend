@@ -307,50 +307,62 @@ async function updateuser(req, res) {
         const userId = req.params.id;
         const updates = {};
 
-        // Liste des champs autorisés à être mis à jour
-        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage','isApproved',''];
+        // Liste des champs autorisés à être mis à jour (retiré le champ vide)
+        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage', 'isApproved'];
         
-        // Copier seulement les champs autorisés et non vides
+        // Copier seulement les champs autorisés et définis
         allowedFields.forEach(field => {
-            if (req.body[field] !== undefined && req.body[field] !== '') {
+            if (req.body[field] !== undefined) { // Ne pas vérifier !== '' ici
                 updates[field] = req.body[field];
             }
         });
 
-        // Gestion spéciale du mot de passe
-        if (req.body.password && req.body.password.trim() !== '') {
-            updates.password = await bcrypt.hash(req.body.password, 10);
+        // Gestion STRICTE du mot de passe - seulement si fourni et non vide
+        if (req.body.password && typeof req.body.password === 'string' && req.body.password.trim().length >= 8) {
+            updates.password = await bcrypt.hash(req.body.password.trim(), 10);
+        } else if (req.body.password !== undefined) {
+            // Si le mot de passe est fourni mais invalide
+            return res.status(400).json({ 
+                message: "Le mot de passe doit contenir au moins 8 caractères" 
+            });
         }
 
-        // Gestion de l'image
+        // Gestion de l'image (inchangé)
         if (req.file) {
             updates.profileImage = `/uploads/profiles/${req.file.filename}`;
             
-            // Optionnel: Supprimer l'ancienne image du serveur
             const oldUser = await User.findById(userId);
-            if (oldUser.profileImage) {
+            if (oldUser?.profileImage) {
                 const oldImagePath = path.join(__dirname, '..', 'public', oldUser.profileImage);
-                fs.unlink(oldImagePath, err => { if (err) console.error('Erreur suppression ancienne image:', err); });
+                fs.unlink(oldImagePath, err => { 
+                    if (err) console.error('Erreur suppression ancienne image:', err); 
+                });
             }
         }
 
-        // Vérification des permissions
+        // Vérification des permissions (inchangé)
         if (req.user.role !== 'admin' && req.user.id !== userId) {
-            return res.status(403).json({ message: "Accès refusé : vous ne pouvez modifier que votre propre profil" });
+            return res.status(403).json({ 
+                message: "Accès refusé : vous ne pouvez modifier que votre propre profil" 
+            });
         }
 
-        // Mise à jour de l'utilisateur
+        // Mise à jour de l'utilisateur (ajout de la validation)
         const user = await User.findByIdAndUpdate(
             userId, 
-            { $set: updates }, // Utilisation de $set pour ne modifier que les champs spécifiés
-            { new: true, runValidators: true }
-        ).select('-password -__v'); // Exclure les champs sensibles
+            { $set: updates },
+            { 
+                new: true, 
+                runValidators: true,
+                context: 'query' // Important pour les validations mongoose
+            }
+        ).select('-password -__v');
 
         if (!user) {
             return res.status(404).json({ message: "Utilisateur non trouvé" });
         }
 
-        // Log activité
+        // Log activité (inchangé)
         await new Activity({
             user: user._id,
             action: 'Modification du profil',
@@ -368,6 +380,18 @@ async function updateuser(req, res) {
 
     } catch (err) {
         console.error('Erreur mise à jour utilisateur:', err);
+        
+        // Meilleure gestion des erreurs de validation
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({
+                message: "Erreur de validation",
+                errors: Object.keys(err.errors).reduce((acc, key) => {
+                    acc[key] = err.errors[key].message;
+                    return acc;
+                }, {})
+            });
+        }
+
         res.status(500).json({ 
             message: 'Erreur serveur',
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
