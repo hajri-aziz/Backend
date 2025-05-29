@@ -236,7 +236,7 @@ router.delete(
  *       200:
  *         description: Liste des cours renvoyée
  */
-router.get('/category/:categoryId', getCoursByCategory);
+router.get('/categorie/:id', getCoursByCategory);
 
 /**
  * @swagger

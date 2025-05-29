@@ -39,6 +39,7 @@ router.post('/add-member', authMiddleware,socketController.addMemberByEmail); //
 
 // Route pour récupérer les messages entre deux utilisateurs
 router.get('/message/with/:otherUserId', authMiddleware, socketController.getMessagesBetweenUsers);
+router.get ('/:groupId/messages', authMiddleware, socketController.getGroupMessagesBetweenUsers); // Cette route récupère les messages d'un groupe
 
 
 module.exports = router;
