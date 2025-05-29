@@ -3,6 +3,7 @@
 const fetch           = require('node-fetch');
 const Cours           = require('../Models/Cours');
 const CoursSession    = require('../Models/CoursSession');
+const CoursCategory = require('../Models/CoursCategory');
 const User            = require('../Models/User');
 
 const { sendEmail, emailTemplates, scheduleReminder } = require('../services/mailer');
@@ -28,6 +29,7 @@ const getAllCategories = async (req, res) => {
     const categories = await CoursCategory.find();
     res.status(200).json(categories);
   } catch (error) {
+    console.error('🔥 Erreur dans getAllCategories :', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -92,6 +94,7 @@ const getAllCours = async (req, res) => {
       .populate('instructor_id', 'nom prenom email');
     res.status(200).json(coursList);
   } catch (error) {
+    console.error('🔥 Erreur dans getAllCours :', error);
     res.status(500).json({ message: error.message });
   }
 };
