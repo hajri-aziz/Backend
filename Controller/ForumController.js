@@ -61,7 +61,7 @@ const { ObjectId } = mongoose.Types;
             console.log(err);
           }
         }
-  async function getPostAvecCommentaires(req, res) {
+async function getPostAvecCommentaires(req, res) {
           try {
             const postId = req.params.id;
         
@@ -221,7 +221,7 @@ const getGroupMessagesBetweenUsers = async (req, res) => {
       sender: msg.expediteurId._id,
       content: msg.contenu,
       timestamp: msg.dateEnvoi,
-      expediteur: {
+      expediteurId: {
         _id: msg.expediteurId._id,
         prenom: msg.expediteurId.prenom,
         profileImage: msg.expediteurId.profileImage
