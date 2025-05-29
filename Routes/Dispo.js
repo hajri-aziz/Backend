@@ -165,4 +165,10 @@ router.delete("/disponibilites/:id",authMiddleware,checkRole("admin","patient"),
  */
 router.put("/disponibilites/:id",authMiddleware,checkRole("admin","patient"), dispoController.updateDisponibilite);
 
+router.post("/contact/", dispoController.addMessage);
+
+router.get("/contact/",authMiddleware,checkRole("admin","patient"), dispoController.getAllMessages);
+
+router.delete("/contact/:id",authMiddleware,checkRole("admin","patient"), dispoController.deleteMessage);
+
 module.exports = router;
