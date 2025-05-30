@@ -115,6 +115,33 @@ router.put('/update/:id', upload.single('profileImage'), authMiddleware, UserCon
 
 /**
  * @swagger
+ * /user/by-role/{role}:
+ *   get:
+ *     summary: Récupérer les utilisateurs par rôle
+ *     tags: [Utilisateurs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: role
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Rôle à filtrer (ex: psychiatre)
+ *       - name: search
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Recherche par nom
+ *     responses:
+ *       200:
+ *         description: Liste des utilisateurs filtrés par rôle
+ */
+router.get('/psychiatres', UserController.getPsychiatristsList);
+router.post('/logout', authMiddleware,UserController.logout);
+/**
+ * @swagger
  * /user/register:
  *   post:
  *     summary: Enregistrer un nouvel utilisateur
