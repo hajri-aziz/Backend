@@ -6,6 +6,12 @@ const CoursSession    = require('../Models/CoursSession');
 const CoursCategory = require('../Models/CoursCategory');
 const User            = require('../Models/User');
 
+const { generatePassword } = require('../services/passwordGenerator');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+
+
 const { sendEmail, emailTemplates, scheduleReminder } = require('../services/mailer');
 
 // --- CATEGORIES ---
@@ -240,12 +246,17 @@ enddate: new Date(req.body.enddate),
 
     if (scheduleChanged && session.participants.length > 0) {
       const coursDoc = await Cours.findById(session.cours_id);
+
       const sessionInfo = {
-        title:     `${coursDoc ? coursDoc.title : 'Cours'} - ${session.title}`,
+      
+        title:     `${session.cours_id.title} – ${session.title}`,
         startdate: session.startdate,
         enddate:   session.enddate,
-        location:  session.location
+        duration:  session.duration,
+        location:  session.location,
+        accessLink:`${process.env.FRONTEND_URL}/sessions/${session._id}`
       };
+       sessionInfo.id = session._id;
       const users = await User.find({ _id: { $in: session.participants.map(p => p.user_id) } });
       for (const usr of users) {
         if (usr.email) {
@@ -275,14 +286,6 @@ const deleteCoursSession = async (req, res) => {
   }
 };
 
-async function generatePassword() {
-  // Exemple avec PasswordWolf
-  const response = await fetch('https://passwordwolf.com/api/?length=12&upper=1&numbers=1&special=1');
-  if (!response.ok) throw new Error(`Erreur génération mot de passe : ${response.status}`);
-  const [result] = await response.json();
-  return result.password;
-}
-
 // --- Inscriptions ---
 const inscrireCoursSession = async (req, res) => {
   try {
@@ -310,7 +313,8 @@ const inscrireCoursSession = async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur introuvable' });
     }
 
-    // 3. Vérifications des conditions
+    // 3. Conditions d’inscription
+
     if (session.participants.some(p => p.user_id.toString() === user_id)) {
       return res.status(400).json({ message: 'Utilisateur déjà inscrit' });
     }
@@ -318,36 +322,47 @@ const inscrireCoursSession = async (req, res) => {
       return res.status(400).json({ message: 'Capacité maximale atteinte' });
     }
 
-    // 4. Enregistrement de l'inscription
+    // 4. Génération du mot de passe
+    let rawPwd;
+    try {
+      rawPwd = await generatePassword();
+    } catch (err) {
+      console.error('Erreur generatePassword, fallback sur crypto :', err);
+      rawPwd = crypto.randomBytes(4).toString('base64');
+    }
+
+    // 5. Hash du mot de passe et push dans participants
+    const pwdHash = await bcrypt.hash(rawPwd, 10);
     session.participants.push({
-      user_id,
-      inscription_date: new Date(),
-      notified: false
+      user_id:             user._id,
+      inscription_date:    new Date(),
+      notified:            false,
+      sessionPasswordHash: pwdHash
     });
     await session.save();
 
-    // 5. Génération du mot de passe
-    const password = await generatePassword(); // votre fonction d’API tiers
-
-    // 6. Construction de l’objet sessionInfo
+    // 6. Préparation des infos de session pour l’e-mail
     const sessionInfo = {
+      id:        session._id.toString(),
       title:     `${session.cours_id.title} – ${session.title}`,  // fallback géré plus haut
       startdate: session.startdate,
       enddate:   session.enddate,
       duration:  session.duration,
       location:  session.location,
-      accessLink:`${process.env.FRONTEND_URL}/sessions/${session._id}`
+      accessLink:`${process.env.FRONTEND_URL}/session-login?sessionId=${session._id}`
+
     };
 
     // 7. Préparation du mail
     const mailOptions = emailTemplates.inscription(
       user.email,
       sessionInfo,
-      { password }
+      { password: rawPwd}
     );
+    const emailResult = await sendEmail(mailOptions);
 
     // 8. Envoi de l'email
-    const emailResult = await sendEmail(mailOptions);
+    
     if (emailResult.success) {
       // on marque notified = true
       const idx = session.participants.findIndex(p => p.user_id.toString() === user_id);

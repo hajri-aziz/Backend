@@ -3,6 +3,31 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
+// ① Sous-schéma Participant enrichi
+const ParticipantSchema = new Schema({
+  user_id: {
+    type: Schema.Types.ObjectId,
+    ref: 'user',       
+    required: true
+  },
+  inscription_date: {
+    type: Date,
+    default: Date.now
+  },
+  notified: {
+    type: Boolean,
+    default: false
+  },
+  // ← champ pour stocker le hash du mot de passe de session
+  sessionPasswordHash: {
+    type: String,
+    required: true
+  },
+  reminders_sent: {
+    type: Number,
+    default: 0
+  }
+});
 const CoursSessionSchema = new Schema({
   title: {
     type: String,
@@ -51,25 +76,8 @@ const CoursSessionSchema = new Schema({
     enum: ['active', 'inactive', 'completed', 'scheduled', 'in-progress', 'cancelled'],
     required: true
   },
-  participants: [{
-    user_id: {
-      type: Schema.Types.ObjectId,
-      ref: 'user',
-      required: true
-    },
-    inscription_date: {
-      type: Date,
-      default: Date.now
-    },
-    notified: {
-      type: Boolean,
-      default: false
-    },
-    reminders_sent: {
-      type: Number,
-      default: 0
-    }
-  }],
+  participants: [ParticipantSchema],
+  
   bookings: [{
     user_id: {
       type: Schema.Types.ObjectId,

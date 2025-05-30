@@ -84,9 +84,7 @@ app.use("/apis", notificationRouter);
  // Utiliser express.static pour servir les fichiers d'images
 app.use('/uploads', express.static('uploads'));
  
- 
-// Chargement des variables d'environnement en premier
-require('dotenv').config({ path: './.env' });
+
 require('./Jobs_Notification/cron'); // lance le job automatiquement au démarrage
  
  
@@ -98,11 +96,18 @@ app.set("views", path.join(__dirname, "views")); // Définir le dossier des vues
 app.set("view engine", "twig");                  // Définir le moteur de vues comme Twig
  
 // ======== ROUTES ========
+
 app.use('/api/test', testRoutes);
+
 // Routes pour les utilisateurs
+
 const UserRouter = require('./Routes/User');
 app.use('/user', UserRouter);
- 
+
+const authSessionRoutes = require('./Routes/authSession');
+app.use('/api/auth', authSessionRoutes);
+
+
 const coursCategoryRoutes = require('./Routes/CoursCategory');
 app.use('/api/coursecategories', coursCategoryRoutes);
  
