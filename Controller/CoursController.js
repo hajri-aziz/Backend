@@ -1,8 +1,9 @@
 // Controller/CoursController.js
 
-const CoursCategory   = require('../Models/CoursCategory');
+const fetch           = require('node-fetch');
 const Cours           = require('../Models/Cours');
 const CoursSession    = require('../Models/CoursSession');
+const CoursCategory = require('../Models/CoursCategory');
 const User            = require('../Models/User');
 
 const { sendEmail, emailTemplates, scheduleReminder } = require('../services/mailer');
@@ -28,6 +29,7 @@ const getAllCategories = async (req, res) => {
     const categories = await CoursCategory.find();
     res.status(200).json(categories);
   } catch (error) {
+    console.error('🔥 Erreur dans getAllCategories :', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -92,6 +94,7 @@ const getAllCours = async (req, res) => {
       .populate('instructor_id', 'nom prenom email');
     res.status(200).json(coursList);
   } catch (error) {
+    console.error('🔥 Erreur dans getAllCours :', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -272,64 +275,114 @@ const deleteCoursSession = async (req, res) => {
   }
 };
 
-// --- Inscriptions ---
+async function generatePassword() {
+  // Exemple avec PasswordWolf
+  const response = await fetch('https://passwordwolf.com/api/?length=12&upper=1&numbers=1&special=1');
+  if (!response.ok) throw new Error(`Erreur génération mot de passe : ${response.status}`);
+  const [result] = await response.json();
+  return result.password;
+}
 
+// --- Inscriptions ---
 const inscrireCoursSession = async (req, res) => {
   try {
     console.log("🔍 Body reçu :", req.body);
-    const { user_id } = req.body;
+    const { user_id }    = req.body;
     const { session_id } = req.params;
 
-    const session = await CoursSession.findById(session_id);
-    if (!session) return res.status(404).json({ message: 'Session non trouvée' });
+    // 1. Vérification de la session
+    const session = await CoursSession
+      .findById(session_id)
+      .populate('cours_id', 'title description duration');
+    if (!session) {
+      return res.status(404).json({ message: 'Session non trouvée' });
+    }
+    if (!session.cours_id) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cours associé introuvable'
+      });
+    }
 
-    if (session.participants.some(p => p.user_id.toString() === user_id))
+    // 2. Vérification de l'utilisateur
+    const user = await User.findById(user_id);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur introuvable' });
+    }
+
+    // 3. Vérifications des conditions
+    if (session.participants.some(p => p.user_id.toString() === user_id)) {
       return res.status(400).json({ message: 'Utilisateur déjà inscrit' });
-    if (session.participants.length >= session.capacity)
+    }
+    if (session.participants.length >= session.capacity) {
       return res.status(400).json({ message: 'Capacité maximale atteinte' });
+    }
 
-    const coursDoc = await Cours.findById(session.cours_id);
-    const usr       = await User.findById(user_id);
-    if (!usr) return res.status(404).json({ message: 'Utilisateur introuvable' });
-    if (!usr.email) return res.status(400).json({ message: 'Utilisateur sans email' });
-
+    // 4. Enregistrement de l'inscription
     session.participants.push({
       user_id,
       inscription_date: new Date(),
-      notified: false,
-      reminders_sent: 0
+      notified: false
     });
     await session.save();
 
+    // 5. Génération du mot de passe
+    const password = await generatePassword(); // votre fonction d’API tiers
+
+    // 6. Construction de l’objet sessionInfo
     const sessionInfo = {
-      title:     `${coursDoc ? coursDoc.title : 'Cours'} - ${session.title}`,
+      title:     `${session.cours_id.title} – ${session.title}`,  // fallback géré plus haut
       startdate: session.startdate,
       enddate:   session.enddate,
-      location:  session.location
+      duration:  session.duration,
+      location:  session.location,
+      accessLink:`${process.env.FRONTEND_URL}/sessions/${session._id}`
     };
 
-    try {
-      const mailOpt = emailTemplates.inscription(usr.email, sessionInfo);
-      await sendEmail(mailOpt);
+    // 7. Préparation du mail
+    const mailOptions = emailTemplates.inscription(
+      user.email,
+      sessionInfo,
+      { password }
+    );
+
+    // 8. Envoi de l'email
+    const emailResult = await sendEmail(mailOptions);
+    if (emailResult.success) {
+      // on marque notified = true
       const idx = session.participants.findIndex(p => p.user_id.toString() === user_id);
       if (idx !== -1) {
         session.participants[idx].notified = true;
         await session.save();
       }
-      scheduleReminder(usr.email, sessionInfo);
-      res.status(201).json({ message: 'Inscription réussie et email envoyé', session, emailSent: true });
-    } catch (emailError) {
-      res.status(201).json({
-        message:    'Inscription réussie mais échec notification',
+
+      return res.status(201).json({
+        success: true,
+        message: 'Inscription réussie et email envoyé',
+        session
+      });
+    } else {
+      console.warn('Échec envoi email :', emailResult.error);
+      return res.status(201).json({
+        success: true,
+        message: 'Inscription réussie mais échec d’envoi de l’email',
         session,
-        emailSent:  false,
-        emailError: emailError.message
+        emailError: emailResult.error
       });
     }
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Erreur lors de l’inscription :', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l’inscription',
+      error:   error.message
+    });
   }
 };
+
+
+//
 
 const getInscriptionsBySession = async (req, res) => {
   try {

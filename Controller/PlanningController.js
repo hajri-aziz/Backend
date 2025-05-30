@@ -2,6 +2,8 @@ const Disponibilities = require("../Models/Disponibilities");
 const RendezVous = require("../Models/RendezVous");
 const Evenement = require("../Models/Evenemnts");
 const Notification = require("../Models/Notification");
+const Message = require("../Models/Contactuser"); // <-- Assure-toi que le modèle existe
+
 //********************* Gestion de  disponiblités ******************* */
 
 // ✅ Ajouter une disponibilité
@@ -504,6 +506,61 @@ async function markNotificationAsRead(req, res) {
   }
 }
 
+// ✅ Ajouter un message de contact
+async function addMessage(req, res) {
+  try {
+    const { name, email, subject, message } = req.body;
+
+    const newMessage = new Message({
+      name,
+      email,
+      subject,
+      message
+    });
+
+    await newMessage.save();
+
+    res.status(201).json({
+      message: "Message envoyé avec succès",
+      data: newMessage
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Erreur lors de l'envoi du message",
+      error: err.message
+    });
+  }
+}
+
+// ✅ Récupérer tous les messages envoyés via le formulaire de contact
+async function getAllMessages(req, res) {
+  try {
+    const messages = await Message.find().sort({ createdAt: -1 });
+    res.status(200).json(messages);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Erreur lors de la récupération des messages",
+      error: err.message
+    });
+  }
+}
+
+// ✅ Supprimer un message par ID
+async function deleteMessage(req, res) {
+  try {
+    const message = await Message.findByIdAndDelete(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message non trouvé" });
+    }
+    res.status(200).json({ success: true, message: "Message supprimé avec succès", data: message });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Erreur lors de la suppression du message", error: error.message });
+  }
+}
+
 
 
   module.exports = {
@@ -530,5 +587,8 @@ async function markNotificationAsRead(req, res) {
     getInscriptionsByEvenement,
     annulerInscription,
     getNotificationsByPatient, 
-    markNotificationAsRead
+    markNotificationAsRead,
+    addMessage, 
+    getAllMessages,
+    deleteMessage
   };
