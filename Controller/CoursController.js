@@ -349,14 +349,14 @@ const inscrireCoursSession = async (req, res) => {
       enddate:   session.enddate,
       duration:  session.duration,
       location:  session.location,
-      accessLink:`${process.env.FRONTEND_URL}/session-login?sessionId=${session._id}`
+       accessLink: `${process.env.FRONTEND_URL}/sessions/${session._id}/play`
 
     };
 
     // 7. Préparation du mail
     const mailOptions = emailTemplates.inscription(
       user.email,
-      sessionInfo,
+      { ...sessionInfo },
       { password: rawPwd}
     );
     const emailResult = await sendEmail(mailOptions);

@@ -56,7 +56,7 @@ async function sessionLogin(req, res) {
     return res.status(200).json({
       message:    'Connexion à la session réussie',
       tokenSession,
-      accessLink: `${process.env.FRONTEND_URL}/sessions/${sessionId}`
+      accessLink: `${process.env.FRONTEND_URL}/sessions/${sessionId}/play`
     });
 
   } catch (err) {
