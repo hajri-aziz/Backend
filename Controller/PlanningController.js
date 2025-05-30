@@ -486,10 +486,10 @@ async function getNotificationsByPatient(req, res) {
 // ✅ Marquer comme lue
 async function markNotificationAsRead(req, res) {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // Use 'id' for the notification _id
 
     const notification = await Notification.findByIdAndUpdate(
-      id,
+      id, // Update based on the notification _id
       { lu: true },
       { new: true }
     );
@@ -499,7 +499,6 @@ async function markNotificationAsRead(req, res) {
     }
 
     res.status(200).json({ message: "Notification marquée comme lue", notification });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erreur lors de la mise à jour de la notification" });
