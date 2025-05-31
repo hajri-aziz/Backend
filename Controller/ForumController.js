@@ -60,7 +60,17 @@ const { ObjectId } = mongoose.Types;
           } catch (err) {
             console.log(err);
           }
-        }
+}
+async function getPostByIdpublic(req, res) {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    res.status(200).json(post);
+  } catch (err) {
+    console.log(err);
+  }
+}
+        
 async function getPostAvecCommentaires(req, res) {
           try {
             const postId = req.params.id;
@@ -589,5 +599,6 @@ const getReactions = async (req, res) => {
         getMessagesBetweenUsers,
         reactToPost,
         getReactions,
-        getGroupMessagesBetweenUsers
+      getGroupMessagesBetweenUsers,
+      getPostByIdpublic
     }

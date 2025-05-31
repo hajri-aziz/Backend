@@ -1,49 +1,57 @@
-// BACKEND/utils/emailTemplates.js
 const emailTemplates = {
-  inscription: (email, sessionInfo, loginCredentials) => ({
-    to:      email,
-    subject: `Confirmation d'inscription – ${sessionInfo.title}`,
-    text:    `Vous êtes inscrit à la session '${sessionInfo.title}' du ${new Date(sessionInfo.startdate).toLocaleString()}.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;border-radius:8px;overflow:hidden;">
-        <!-- Header avec logo depuis le frontend (URL absolue) -->
-        <div style="background:#007299;padding:20px;text-align:center;">
-          <img src="http://localhost:4200/assets/logo.png" alt="Logo" style="max-width:120px;">
-        </div>
-        <!-- Corps -->
-        <div style="padding:20px;">
-          <h2 style="color:#007299;margin-top:0;">Confirmation d'inscription</h2>
-          <p>Bonjour,</p>
-          <p>Votre inscription à la session <strong>${sessionInfo.title}</strong> a bien été enregistrée :</p>
-          <ul>
-            <li><strong>Date de début :</strong> ${new Date(sessionInfo.startdate).toLocaleString()}</li>
-            <li><strong>Date de fin :</strong> ${new Date(sessionInfo.enddate).toLocaleString()}</li>
-            <li><strong>Lieu :</strong> ${sessionInfo.location || 'Non spécifié'}</li>
-            <li><strong>Durée :</strong> ${sessionInfo.duration.amount} ${sessionInfo.duration.unit}</li>
-          </ul>
-          <p>Vos identifiants de connexion :</p>
-          <div style="background:#f0f7ff;padding:15px;border-radius:4px;">
-            <p><strong>Email :</strong> ${email}</p>
-            <p><strong>Mot de passe :</strong> ${loginCredentials.password}</p>
-          </div>
-          <div style="text-align:center;margin:20px 0;">
-            <a href="${sessionInfo.accessLink}" style="background:#007299;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;">Accéder à la session</a>
-          </div>
-        </div>
-        <!-- Footer -->
-        <div style="background:#f9f9f9;padding:15px;text-align:center;font-size:12px;color:#777;">
-          <p>© ${new Date().getFullYear()} Votre Plateforme. Tous droits réservés.</p>
-          <p>Contactez-nous : <a href="mailto:support@votreplateforme.com" style="color:#007299;">support@votreplateforme.com</a></p>
-          <p>
-            <a href="https://facebook.com/votrepage" style="margin:0 5px;color:#007299;">Facebook</a> |
-            <a href="https://twitter.com/votretwitter" style="margin:0 5px;color:#007299;">Twitter</a>
-          </p>
-        </div>
-      </div>
-    `
-  }),
+  inscription: (email, sessionInfo, loginCredentials) => {
+    // juste avant de retourner l’objet, on build le redirect encodé
+    const redirectPath = encodeURIComponent(
+      `/session-login?sessionId=${sessionInfo.id}`
+    );
 
-    
+    return {
+      to:      email,
+      subject: `Confirmation d'inscription – ${sessionInfo.title}`,
+      text:    `Vous êtes inscrit à la session '${sessionInfo.title}' du ${new Date(sessionInfo.startdate).toLocaleString()}.`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;border-radius:8px;overflow:hidden;">
+          <!-- Header -->
+          <div style="background:#007299;padding:20px;text-align:center;">
+            <img src="http://localhost:4200/assets/logo.png" alt="Logo" style="max-width:120px;">
+          </div>
+          <!-- Corps -->
+          <div style="padding:20px;">
+            <h2 style="color:#007299;margin-top:0;">Confirmation d'inscription</h2>
+            <p>Bonjour,</p>
+            <p>Votre inscription à la session <strong>${sessionInfo.title}</strong> a bien été enregistrée :</p>
+            <ul>
+              <li><strong>Date de début :</strong> ${new Date(sessionInfo.startdate).toLocaleString()}</li>
+              <li><strong>Date de fin :</strong> ${new Date(sessionInfo.enddate).toLocaleString()}</li>
+              <li><strong>Lieu :</strong> ${sessionInfo.location || 'Non spécifié'}</li>
+              <li><strong>Durée :</strong> ${sessionInfo.duration.amount} ${sessionInfo.duration.unit}</li>
+            </ul>
+            <p>Vos identifiants de connexion :</p>
+            <div style="background:#f0f7ff;padding:15px;border-radius:4px;">
+              <p><strong>Email :</strong> ${email}</p>
+              <p><strong>Mot de passe :</strong> ${loginCredentials.password}</p>
+            </div>
+            <!-- 🔑 Le nouveau lien -->
+            <div style="text-align:center;margin:20px 0;">
+              <a
+                href="${process.env.FRONTEND_URL}/login?redirect=${redirectPath}"
+                style="background:#007299;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;"
+              >Accéder à la session</a>
+            </div>
+          </div>
+          <!-- Footer -->
+          <div style="background:#f9f9f9;padding:15px;text-align:center;font-size:12px;color:#777;">
+            <p>© ${new Date().getFullYear()} Votre Plateforme. Tous droits réservés.</p>
+            <p>Contactez-nous : <a href="mailto:support@votreplateforme.com" style="color:#007299;">support@votreplateforme.com</a></p>
+            <p>
+              <a href="https://facebook.com/votrepage" style="margin:0 5px;color:#007299;">Facebook</a> |
+              <a href="https://twitter.com/votretwitter" style="margin:0 5px;color:#007299;">Twitter</a>
+            </p>
+          </div>
+        </div>
+      `
+    };
+  },
     rappel: (userEmail, sessionInfo) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
           <h2 style="color: #4a4a4a; text-align: center;">Rappel - Votre session commence bientôt</h2>

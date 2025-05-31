@@ -84,7 +84,7 @@ const secretKey = process.env.JWT_SECRET;
 // Fonction d'inscription
 async function register(req, res) {
     try {
-        const { nom, prenom, email, password, dateNaissance,telephone,isApproved } = req.body;
+        const { nom, prenom, email, password, dateNaissance,telephone,isApproved,role } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -100,7 +100,8 @@ async function register(req, res) {
             password: hashedPassword,
             dateNaissance,
             telephone,
-            isApproved, // L'utilisateur est en attente d'approbation
+            isApproved,// L'utilisateur est en attente d'approbation
+            role,
         });
 
         await user.save();
@@ -308,7 +309,7 @@ async function updateuser(req, res) {
         const updates = {};
 
         // Liste des champs autorisés à être mis à jour (retiré le champ vide)
-        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage', 'isApproved'];
+        const allowedFields = ['nom', 'prenom', 'email', 'dateNaissance', 'telephone', 'profileImage', 'isApproved','role'];
         
         // Copier seulement les champs autorisés et définis
         allowedFields.forEach(field => {
@@ -448,8 +449,52 @@ async function uploadProfile(req, res) {
     }
 }
 
+// Nouvelle méthode pour filtrer par rôle
+async function getPsychiatristsList(req, res) {
+    try {
+        const psychiatres = await User.find({ 
+            role: { $regex: /psychiatre/i },
+            isApproved: true
+        }).select('nom prenom profileImage role'); // Seulement les champs nécessaires
+
+        res.status(200).json(psychiatres);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+}
+// 🚪 Fonction de déconnexion
+async function logout(req, res) {
+    try {
+        // Récupérer le token de l'en-tête Authorization
+        const token = req.headers.authorization?.split(' ')[1];
+        
+        if (!token) {
+            return res.status(400).json({ message: "Aucun token fourni" });
+        }
+
+        // Enregistrer l'activité de déconnexion
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const newActivity = new Activity({
+            user: decoded.id,
+            action: 'Déconnexion réussie'
+        });
+        await newActivity.save();
+
+        // Dans une implémentation plus sécurisée, vous pourriez ajouter le token à une blacklist
+        // (nécessite une base de données Redis ou une collection MongoDB pour stocker les tokens invalides)
+
+        res.status(200).json({ 
+            message: "Déconnexion réussie", 
+            action: "Veuillez supprimer le token côté client" 
+        });
+
+    } catch (err) {
+        console.error('Erreur lors de la déconnexion:', err);
+        res.status(500).json({ message: 'Erreur serveur lors de la déconnexion' });
+    }
+}
 
 
 
-
-module.exports = {  showusers, showusersbyId, showByName, deleteusers, updateuser, register, login,sendOTP,verifyOTP,authorizeUser ,showActivities,uploadProfile ,approveUser};
+module.exports = {  showusers, showusersbyId, showByName, deleteusers, updateuser, register, login,sendOTP,verifyOTP,authorizeUser ,showActivities,uploadProfile ,approveUser,getPsychiatristsList,logout};

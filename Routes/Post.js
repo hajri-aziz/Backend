@@ -77,6 +77,7 @@ router.get("/getallPost",authMiddleware,postController.getallPost);
  */
 router.get("/getPostbyId/:id",authMiddleware, postController.getPostById);
 
+router.get("/getPostbyIdpublic/:id", postController.getPostByIdpublic);
 /**
  * @swagger
  * /post/deletePost/{id}:
